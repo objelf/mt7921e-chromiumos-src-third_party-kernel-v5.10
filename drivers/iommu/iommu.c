@@ -262,7 +262,8 @@ int iommu_probe_device(struct device *dev)
 	 * support default domains, so the return value is not yet
 	 * checked.
 	 */
-	iommu_alloc_default_domain(group, dev);
+	if (!group->default_domain)
+		iommu_alloc_default_domain(group, dev);
 
 	if (group->default_domain) {
 		ret = __iommu_attach_device(group->default_domain, dev);
