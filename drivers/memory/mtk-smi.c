@@ -76,7 +76,7 @@ struct mtk_smi_larb_gen {
 struct mtk_smi {
 	struct device			*dev;
 	struct clk			*clk_apb, *clk_smi;
-	struct clk			*clk_gals0, *clk_gals1;
+	struct clk			*clk_gals0, *clk_gals1, *clk_gals2;
 	struct clk			*clk_async; /*only needed by mt2701*/
 	union {
 		void __iomem		*smi_ao_base; /* only for gen1 */
@@ -115,8 +115,14 @@ static int mtk_smi_clk_enable(const struct mtk_smi *smi)
 	if (ret)
 		goto err_disable_gals0;
 
+	ret = clk_prepare_enable(smi->clk_gals2);
+	if (ret)
+		goto err_disable_gals1;
+
 	return 0;
 
+err_disable_gals1:
+	clk_disable_unprepare(smi->clk_gals1);
 err_disable_gals0:
 	clk_disable_unprepare(smi->clk_gals0);
 err_disable_smi:
@@ -128,6 +134,7 @@ err_disable_apb:
 
 static void mtk_smi_clk_disable(const struct mtk_smi *smi)
 {
+	clk_disable_unprepare(smi->clk_gals2);
 	clk_disable_unprepare(smi->clk_gals1);
 	clk_disable_unprepare(smi->clk_gals0);
 	clk_disable_unprepare(smi->clk_smi);
@@ -266,6 +273,12 @@ static const struct mtk_smi_larb_gen mtk_smi_larb_mt8192 = {
 	.config_port                = mtk_smi_larb_config_port_gen2_general,
 };
 
+static const struct mtk_smi_larb_gen mtk_smi_larb_mt8195 = {
+	.has_gals                   = true,
+	.config_port                = mtk_smi_larb_config_port_gen2_general,
+	.larb_direct_to_common_mask = BIT(29) | BIT(30),
+};
+
 static const struct of_device_id mtk_smi_larb_of_ids[] = {
 	{
 		.compatible = "mediatek,mt8167-smi-larb",
@@ -294,6 +307,10 @@ static const struct of_device_id mtk_smi_larb_of_ids[] = {
 	{
 		.compatible = "mediatek,mt8192-smi-larb",
 		.data = &mtk_smi_larb_mt8192
+	},
+	{
+		.compatible = "mediatek,mt8195-smi-larb",
+		.data = &mtk_smi_larb_mt8195
 	},
 	{}
 };
@@ -332,6 +349,18 @@ static int mtk_smi_larb_probe(struct platform_device *pdev)
 			larb->smi.clk_gals0 = NULL;
 		else if (IS_ERR(larb->smi.clk_gals0))
 			return PTR_ERR(larb->smi.clk_gals0);
+
+		larb->smi.clk_gals1 = devm_clk_get(dev, "gals1");
+		if (PTR_ERR(larb->smi.clk_gals1) == -ENOENT)
+			larb->smi.clk_gals1 = NULL;
+		else if (IS_ERR(larb->smi.clk_gals1))
+			return PTR_ERR(larb->smi.clk_gals1);
+
+		larb->smi.clk_gals2 = devm_clk_get(dev, "gals2");
+		if (PTR_ERR(larb->smi.clk_gals2) == -ENOENT)
+			larb->smi.clk_gals2 = NULL;
+		else if (IS_ERR(larb->smi.clk_gals2))
+			return PTR_ERR(larb->smi.clk_gals2);
 	}
 	larb->smi.dev = dev;
 
@@ -442,6 +471,13 @@ static const struct mtk_smi_common_plat mtk_smi_common_mt8192 = {
 		    F_MMU1_LARB(6),
 };
 
+static const struct mtk_smi_common_plat mtk_smi_common_mt8195 = {
+	.gen      = MTK_SMI_GEN2,
+	.has_gals = true,
+	.bus_sel  = F_MMU1_LARB(2) | F_MMU1_LARB(3) | F_MMU1_LARB(4) |
+		    F_MMU1_LARB(5),
+};
+
 static const struct of_device_id mtk_smi_common_of_ids[] = {
 	{
 		.compatible = "mediatek,mt8173-smi-common",
@@ -470,6 +506,10 @@ static const struct of_device_id mtk_smi_common_of_ids[] = {
 	{
 		.compatible = "mediatek,mt8192-smi-common",
 		.data = &mtk_smi_common_mt8192,
+	},
+	{
+		.compatible = "mediatek,mt8195-smi-common",
+		.data = &mtk_smi_common_mt8195,
 	},
 	{}
 };
