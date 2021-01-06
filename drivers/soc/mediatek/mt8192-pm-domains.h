@@ -23,6 +23,8 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8192[] = {
 				    MT8192_TOP_AXI_PROT_EN_2_CLR,
 				    MT8192_TOP_AXI_PROT_EN_2_STA1),
 		},
+		.pwr_sta_offs = 0x016c,
+		.pwr_sta2nd_offs = 0x0170,
 	},
 	[MT8192_POWER_DOMAIN_CONN] = {
 		.name = "conn",
@@ -45,6 +47,8 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8192[] = {
 				    MT8192_TOP_AXI_PROT_EN_1_STA1),
 		},
 		.caps = MTK_SCPD_KEEP_DEFAULT_OFF,
+		.pwr_sta_offs = 0x016c,
+		.pwr_sta2nd_offs = 0x0170,
 	},
 	[MT8192_POWER_DOMAIN_MFG0] = {
 		.name = "mfg0",
@@ -52,6 +56,8 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8192[] = {
 		.ctl_offs = 0x0308,
 		.sram_pdn_bits = GENMASK(8, 8),
 		.sram_pdn_ack_bits = GENMASK(12, 12),
+		.pwr_sta_offs = 0x016c,
+		.pwr_sta2nd_offs = 0x0170,
 	},
 	[MT8192_POWER_DOMAIN_MFG1] = {
 		.name = "mfg1",
@@ -77,6 +83,8 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8192[] = {
 				    MT8192_TOP_AXI_PROT_EN_2_CLR,
 				    MT8192_TOP_AXI_PROT_EN_2_STA1),
 		},
+		.pwr_sta_offs = 0x016c,
+		.pwr_sta2nd_offs = 0x0170,
 	},
 	[MT8192_POWER_DOMAIN_MFG2] = {
 		.name = "mfg2",
@@ -84,6 +92,8 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8192[] = {
 		.ctl_offs = 0x0310,
 		.sram_pdn_bits = GENMASK(8, 8),
 		.sram_pdn_ack_bits = GENMASK(12, 12),
+		.pwr_sta_offs = 0x016c,
+		.pwr_sta2nd_offs = 0x0170,
 	},
 	[MT8192_POWER_DOMAIN_MFG3] = {
 		.name = "mfg3",
@@ -91,6 +101,8 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8192[] = {
 		.ctl_offs = 0x0314,
 		.sram_pdn_bits = GENMASK(8, 8),
 		.sram_pdn_ack_bits = GENMASK(12, 12),
+		.pwr_sta_offs = 0x016c,
+		.pwr_sta2nd_offs = 0x0170,
 	},
 	[MT8192_POWER_DOMAIN_MFG4] = {
 		.name = "mfg4",
@@ -98,6 +110,8 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8192[] = {
 		.ctl_offs = 0x0318,
 		.sram_pdn_bits = GENMASK(8, 8),
 		.sram_pdn_ack_bits = GENMASK(12, 12),
+		.pwr_sta_offs = 0x016c,
+		.pwr_sta2nd_offs = 0x0170,
 	},
 	[MT8192_POWER_DOMAIN_MFG5] = {
 		.name = "mfg5",
@@ -105,6 +119,8 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8192[] = {
 		.ctl_offs = 0x031c,
 		.sram_pdn_bits = GENMASK(8, 8),
 		.sram_pdn_ack_bits = GENMASK(12, 12),
+		.pwr_sta_offs = 0x016c,
+		.pwr_sta2nd_offs = 0x0170,
 	},
 	[MT8192_POWER_DOMAIN_MFG6] = {
 		.name = "mfg6",
@@ -112,6 +128,8 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8192[] = {
 		.ctl_offs = 0x0320,
 		.sram_pdn_bits = GENMASK(8, 8),
 		.sram_pdn_ack_bits = GENMASK(12, 12),
+		.pwr_sta_offs = 0x016c,
+		.pwr_sta2nd_offs = 0x0170,
 	},
 	[MT8192_POWER_DOMAIN_DISP] = {
 		.name = "disp",
@@ -141,6 +159,8 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8192[] = {
 				    MT8192_TOP_AXI_PROT_EN_MM_2_CLR,
 				    MT8192_TOP_AXI_PROT_EN_MM_2_STA1),
 		},
+		.pwr_sta_offs = 0x016c,
+		.pwr_sta2nd_offs = 0x0170,
 	},
 	[MT8192_POWER_DOMAIN_IPE] = {
 		.name = "ipe",
@@ -158,6 +178,8 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8192[] = {
 				    MT8192_TOP_AXI_PROT_EN_MM_CLR,
 				    MT8192_TOP_AXI_PROT_EN_MM_STA1),
 		},
+		.pwr_sta_offs = 0x016c,
+		.pwr_sta2nd_offs = 0x0170,
 	},
 	[MT8192_POWER_DOMAIN_ISP] = {
 		.name = "isp",
@@ -175,6 +197,8 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8192[] = {
 				    MT8192_TOP_AXI_PROT_EN_MM_2_CLR,
 				    MT8192_TOP_AXI_PROT_EN_MM_2_STA1),
 		},
+		.pwr_sta_offs = 0x016c,
+		.pwr_sta2nd_offs = 0x0170,
 	},
 	[MT8192_POWER_DOMAIN_ISP2] = {
 		.name = "isp2",
@@ -192,6 +216,8 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8192[] = {
 				    MT8192_TOP_AXI_PROT_EN_MM_CLR,
 				    MT8192_TOP_AXI_PROT_EN_MM_STA1),
 		},
+		.pwr_sta_offs = 0x016c,
+		.pwr_sta2nd_offs = 0x0170,
 	},
 	[MT8192_POWER_DOMAIN_MDP] = {
 		.name = "mdp",
@@ -209,6 +235,8 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8192[] = {
 				    MT8192_TOP_AXI_PROT_EN_MM_2_CLR,
 				    MT8192_TOP_AXI_PROT_EN_MM_2_STA1),
 		},
+		.pwr_sta_offs = 0x016c,
+		.pwr_sta2nd_offs = 0x0170,
 	},
 	[MT8192_POWER_DOMAIN_VENC] = {
 		.name = "venc",
@@ -226,6 +254,8 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8192[] = {
 				    MT8192_TOP_AXI_PROT_EN_MM_CLR,
 				    MT8192_TOP_AXI_PROT_EN_MM_STA1),
 		},
+		.pwr_sta_offs = 0x016c,
+		.pwr_sta2nd_offs = 0x0170,
 	},
 	[MT8192_POWER_DOMAIN_VDEC] = {
 		.name = "vdec",
@@ -243,6 +273,8 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8192[] = {
 				    MT8192_TOP_AXI_PROT_EN_MM_CLR,
 				    MT8192_TOP_AXI_PROT_EN_MM_STA1),
 		},
+		.pwr_sta_offs = 0x016c,
+		.pwr_sta2nd_offs = 0x0170,
 	},
 	[MT8192_POWER_DOMAIN_VDEC2] = {
 		.name = "vdec2",
@@ -250,6 +282,8 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8192[] = {
 		.ctl_offs = 0x0340,
 		.sram_pdn_bits = GENMASK(8, 8),
 		.sram_pdn_ack_bits = GENMASK(12, 12),
+		.pwr_sta_offs = 0x016c,
+		.pwr_sta2nd_offs = 0x0170,
 	},
 	[MT8192_POWER_DOMAIN_CAM] = {
 		.name = "cam",
@@ -279,6 +313,8 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8192[] = {
 				    MT8192_TOP_AXI_PROT_EN_VDNR_CLR,
 				    MT8192_TOP_AXI_PROT_EN_VDNR_STA1),
 		},
+		.pwr_sta_offs = 0x016c,
+		.pwr_sta2nd_offs = 0x0170,
 	},
 	[MT8192_POWER_DOMAIN_CAM_RAWA] = {
 		.name = "cam_rawa",
@@ -286,6 +322,8 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8192[] = {
 		.ctl_offs = 0x0360,
 		.sram_pdn_bits = GENMASK(8, 8),
 		.sram_pdn_ack_bits = GENMASK(12, 12),
+		.pwr_sta_offs = 0x016c,
+		.pwr_sta2nd_offs = 0x0170,
 	},
 	[MT8192_POWER_DOMAIN_CAM_RAWB] = {
 		.name = "cam_rawb",
@@ -293,6 +331,8 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8192[] = {
 		.ctl_offs = 0x0364,
 		.sram_pdn_bits = GENMASK(8, 8),
 		.sram_pdn_ack_bits = GENMASK(12, 12),
+		.pwr_sta_offs = 0x016c,
+		.pwr_sta2nd_offs = 0x0170,
 	},
 	[MT8192_POWER_DOMAIN_CAM_RAWC] = {
 		.name = "cam_rawc",
@@ -300,14 +340,14 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8192[] = {
 		.ctl_offs = 0x0368,
 		.sram_pdn_bits = GENMASK(8, 8),
 		.sram_pdn_ack_bits = GENMASK(12, 12),
+		.pwr_sta_offs = 0x016c,
+		.pwr_sta2nd_offs = 0x0170,
 	},
 };
 
 static const struct scpsys_soc_data mt8192_scpsys_data = {
 	.domains_data = scpsys_domain_data_mt8192,
 	.num_domains = ARRAY_SIZE(scpsys_domain_data_mt8192),
-	.pwr_sta_offs = 0x016c,
-	.pwr_sta2nd_offs = 0x0170,
 };
 
 #endif /* __SOC_MEDIATEK_MT8192_PM_DOMAINS_H */
