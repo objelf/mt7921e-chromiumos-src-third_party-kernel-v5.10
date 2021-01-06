@@ -36,7 +36,7 @@
 #define PWR_STATUS_AUDIO		BIT(24)
 #define PWR_STATUS_USB			BIT(25)
 
-#define SPM_MAX_BUS_PROT_DATA		5
+#define SPM_MAX_BUS_PROT_DATA		6
 
 #define _BUS_PROT(_mask, _set, _clr, _sta, _update, _ignore) {	\
 		.bus_prot_mask = (_mask),			\
@@ -70,8 +70,6 @@ struct scpsys_bus_prot_data {
 	bool bus_prot_reg_update;
 	bool ignore_clr_ack;
 };
-
-#define MAX_SUBSYS_CLKS 10
 
 /**
  * struct scpsys_domain_data - scp domain data for power on/off flow
