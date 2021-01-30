@@ -79,12 +79,68 @@
 #define SSC_IP_SLEEP_EN	BIT(4)
 #define SSC_SPM_INT_EN		BIT(1)
 
+/*HFCNTR_CFG*/
+#define HFCNTR_CFG	0x944
+#define ITP_DELTA_CLK	(0xa << 1)
+#define FRMCNT_LEV1_RANG	(0x12b << 8)
+#define ITP_DELTA_CLK_MASK	(0x1f << 1)
+#define FRMCNT_LEV1_RANG_MASK	(0xfff << 8)
+/*LS_EOF*/
+#define LS_EOF	0x930
+#define LS_EOF_OFFSET	0x89
+/*FS_EOF*/
+#define FS_EOF	0x934
+#define FS_EOF_OFFSET	0x2e
+/*SS_GEN1_EOF*/
+#define SS_GEN1_EOF	0x93c
+#define SS_GEN1_EOF_OFFSET	0x78
+/*SS_GEN2_EOF*/
+#define SS_GEN2_EOF	0x990
+#define SS_GEN2_EOF_OFFSET	0x3c
+#define EOF_OFFSET_MASK	0xfff
+
 enum ssusb_uwk_vers {
 	SSUSB_UWK_V1 = 1,
 	SSUSB_UWK_V2,
 	SSUSB_UWK_V1_1 = 101,	/* specific revision 1.01 */
 	SSUSB_UWK_V1_2,		/* specific revision 1.2 */
 };
+
+void xhci_quirks_set(struct xhci_hcd_mtk *mtk)
+{
+	struct usb_hcd *hcd = mtk->hcd;
+	u32 value;
+
+	/*HFCNTR_CFG*/
+	value = readl(hcd->regs + HFCNTR_CFG);
+	value &= ~(ITP_DELTA_CLK_MASK | FRMCNT_LEV1_RANG_MASK);
+	value |= (ITP_DELTA_CLK | FRMCNT_LEV1_RANG);
+	writel(value, hcd->regs + HFCNTR_CFG);
+
+	/*LS_EOF*/
+	value = readl(hcd->regs + LS_EOF);
+	value &= ~EOF_OFFSET_MASK;
+	value |= LS_EOF_OFFSET;
+	writel(value, hcd->regs + LS_EOF);
+
+	/*FS_EOF*/
+	value = readl(hcd->regs + FS_EOF);
+	value &= ~EOF_OFFSET_MASK;
+	value |= FS_EOF_OFFSET;
+	writel(value, hcd->regs + FS_EOF);
+
+	/*SS_GEN1_EOF*/
+	value = readl(hcd->regs + SS_GEN1_EOF);
+	value &= ~EOF_OFFSET_MASK;
+	value |= SS_GEN1_EOF_OFFSET;
+	writel(value, hcd->regs + SS_GEN1_EOF);
+
+	/*SS_GEN2_EOF*/
+	value = readl(hcd->regs + SS_GEN2_EOF);
+	value &= ~EOF_OFFSET_MASK;
+	value |= SS_GEN2_EOF_OFFSET;
+	writel(value, hcd->regs + SS_GEN2_EOF);
+}
 
 static int xhci_mtk_host_enable(struct xhci_hcd_mtk *mtk)
 {
@@ -139,6 +195,8 @@ static int xhci_mtk_host_enable(struct xhci_hcd_mtk *mtk)
 		dev_err(mtk->dev, "clocks are not stable (0x%x)\n", value);
 		return ret;
 	}
+	if (mtk->has_cnt)
+		xhci_quirks_set(mtk);
 
 	return 0;
 }
@@ -511,6 +569,7 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 	 */
 	xhci->imod_interval = 5000;
 	device_property_read_u32(dev, "imod-interval-ns", &xhci->imod_interval);
+	mtk->has_cnt = of_property_read_bool(node, "mediatek,frame-cnt");
 
 	xhci->shared_hcd = usb_create_shared_hcd(driver, dev,
 			dev_name(dev), hcd);

@@ -145,6 +145,7 @@ struct xhci_hcd_mtk {
 	struct clk_bulk_data clks[BULK_CLKS_NUM];
 	bool lpm_support;
 	bool u2_lpm_disable;
+	bool has_cnt;
 	/* usb remote wakeup */
 	bool uwk_en;
 	struct regmap *uwk;
