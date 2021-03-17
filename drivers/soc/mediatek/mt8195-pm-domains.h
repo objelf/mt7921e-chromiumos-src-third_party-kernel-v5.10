@@ -16,6 +16,7 @@
 
 static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 	[MT8195_POWER_DOMAIN_PCIE_MAC_P0] = {
+		.name = "pcie_mac_p0",
 		.sta_mask = BIT(11),
 		.ctl_offs = 0x328,
 		.pwr_sta_offs = 0x174,
@@ -34,6 +35,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		},
 	},
 	[MT8195_POWER_DOMAIN_PCIE_MAC_P1] = {
+		.name = "pcie_mac_p1",
 		.sta_mask = BIT(12),
 		.ctl_offs = 0x32C,
 		.pwr_sta_offs = 0x174,
@@ -52,6 +54,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		},
 	},
 	[MT8195_POWER_DOMAIN_PCIE_PHY] = {
+		.name = "pcie_phy",
 		.sta_mask = BIT(13),
 		.ctl_offs = 0x330,
 		.pwr_sta_offs = 0x174,
@@ -59,6 +62,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_ACTIVE_WAKEUP,
 	},
 	[MT8195_POWER_DOMAIN_SSUSB_PCIE_PHY] = {
+		.name = "ssusb_pcie_phy",
 		.sta_mask = BIT(14),
 		.ctl_offs = 0x334,
 		.pwr_sta_offs = 0x174,
@@ -66,6 +70,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_ACTIVE_WAKEUP,
 	},
 	[MT8195_POWER_DOMAIN_CSI_RX_TOP] = {
+		.name = "csi_rx_top",
 		.sta_mask = BIT(18),
 		.ctl_offs = 0x3C4,
 		.pwr_sta_offs = 0x174,
@@ -73,6 +78,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_KEEP_DEFAULT_OFF,
 	},
 	[MT8195_POWER_DOMAIN_ETHER] = {
+		.name = "ether",
 		.sta_mask = BIT(3),
 		.ctl_offs = 0x344,
 		.pwr_sta_offs = 0x16c,
@@ -82,6 +88,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_ACTIVE_WAKEUP,
 	},
 	[MT8195_POWER_DOMAIN_ADSP] = {
+		.name = "adsp",
 		.sta_mask = BIT(10),
 		.ctl_offs = 0x360,
 		.pwr_sta_offs = 0x16c,
@@ -97,6 +104,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_SRAM_ISO | MTK_SCPD_ACTIVE_WAKEUP,
 	},
 	[MT8195_POWER_DOMAIN_AUDIO] = {
+		.name = "audio",
 		.sta_mask = BIT(8),
 		.ctl_offs = 0x358,
 		.pwr_sta_offs = 0x16c,
@@ -111,6 +119,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		},
 	},
 	[MT8195_POWER_DOMAIN_AUDIO_ASRC] = {
+		.name = "asrc",
 		.sta_mask = BIT(9),
 		.ctl_offs = 0x35C,
 		.pwr_sta_offs = 0x16c,
@@ -125,6 +134,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		},
 	},
 	[MT8195_POWER_DOMAIN_NNA] = {
+		.name = "nna",
 		.sta_mask = BIT(17),
 		.ctl_offs = 0x3C0,
 		.pwr_sta_offs = 0x174,
@@ -152,6 +162,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_KEEP_DEFAULT_OFF,
 	},
 	[MT8195_POWER_DOMAIN_NNA0] = {
+		.name = "nna0",
 		.sta_mask = BIT(15),
 		.ctl_offs = 0x3B8,
 		.pwr_sta_offs = 0x174,
@@ -179,6 +190,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_KEEP_DEFAULT_OFF,
 	},
 	[MT8195_POWER_DOMAIN_NNA1] = {
+		.name = "nna1",
 		.sta_mask = BIT(16),
 		.ctl_offs = 0x3BC,
 		.pwr_sta_offs = 0x174,
@@ -206,6 +218,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_KEEP_DEFAULT_OFF,
 	},
 	[MT8195_POWER_DOMAIN_MFG0] = {
+		.name = "mfg0",
 		.sta_mask = BIT(1),
 		.ctl_offs = 0x300,
 		.pwr_sta_offs = 0x174,
@@ -215,6 +228,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_KEEP_DEFAULT_OFF | MTK_SCPD_DOMAIN_SUPPLY,
 	},
 	[MT8195_POWER_DOMAIN_MFG1] = {
+		.name = "mfg1",
 		.sta_mask = BIT(2),
 		.ctl_offs = 0x304,
 		.pwr_sta_offs = 0x174,
@@ -250,6 +264,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_KEEP_DEFAULT_OFF,
 	},
 	[MT8195_POWER_DOMAIN_MFG2] = {
+		.name = "mfg2",
 		.sta_mask = BIT(3),
 		.ctl_offs = 0x308,
 		.pwr_sta_offs = 0x174,
@@ -259,6 +274,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_KEEP_DEFAULT_OFF,
 	},
 	[MT8195_POWER_DOMAIN_MFG3] = {
+		.name = "mfg3",
 		.sta_mask = BIT(4),
 		.ctl_offs = 0x30C,
 		.pwr_sta_offs = 0x174,
@@ -268,6 +284,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_KEEP_DEFAULT_OFF,
 	},
 	[MT8195_POWER_DOMAIN_MFG4] = {
+		.name = "mfg4",
 		.sta_mask = BIT(5),
 		.ctl_offs = 0x310,
 		.pwr_sta_offs = 0x174,
@@ -277,6 +294,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_KEEP_DEFAULT_OFF,
 	},
 	[MT8195_POWER_DOMAIN_MFG5] = {
+		.name = "mfg5",
 		.sta_mask = BIT(6),
 		.ctl_offs = 0x314,
 		.pwr_sta_offs = 0x174,
@@ -286,6 +304,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_KEEP_DEFAULT_OFF,
 	},
 	[MT8195_POWER_DOMAIN_MFG6] = {
+		.name = "mfg6",
 		.sta_mask = BIT(7),
 		.ctl_offs = 0x318,
 		.pwr_sta_offs = 0x174,
@@ -295,6 +314,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_KEEP_DEFAULT_OFF,
 	},
 	[MT8195_POWER_DOMAIN_VPPSYS0] = {
+		.name = "vppsys0",
 		.sta_mask = BIT(11),
 		.ctl_offs = 0x364,
 		.pwr_sta_offs = 0x16c,
@@ -329,6 +349,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		},
 	},
 	[MT8195_POWER_DOMAIN_VDOSYS0] = {
+		.name = "vdosys0",
 		.sta_mask = BIT(13),
 		.ctl_offs = 0x36C,
 		.pwr_sta_offs = 0x16c,
@@ -359,6 +380,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		},
 	},
 	[MT8195_POWER_DOMAIN_VPPSYS1] = {
+		.name = "vppsys1",
 		.sta_mask = BIT(12),
 		.ctl_offs = 0x368,
 		.pwr_sta_offs = 0x16c,
@@ -381,6 +403,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		},
 	},
 	[MT8195_POWER_DOMAIN_VDOSYS1] = {
+		.name = "vdosys1",
 		.sta_mask = BIT(14),
 		.ctl_offs = 0x370,
 		.pwr_sta_offs = 0x16c,
@@ -403,6 +426,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		},
 	},
 	[MT8195_POWER_DOMAIN_DP_TX] = {
+		.name = "dp_tx",
 		.sta_mask = BIT(16),
 		.ctl_offs = 0x378,
 		.pwr_sta_offs = 0x16c,
@@ -418,6 +442,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_KEEP_DEFAULT_OFF,
 	},
 	[MT8195_POWER_DOMAIN_EPD_TX] = {
+		.name = "epd_tx",
 		.sta_mask = BIT(17),
 		.ctl_offs = 0x37C,
 		.pwr_sta_offs = 0x16c,
@@ -433,6 +458,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_KEEP_DEFAULT_OFF,
 	},
 	[MT8195_POWER_DOMAIN_HDMI_TX] = {
+		.name = "hdmi_tx",
 		.sta_mask = BIT(18),
 		.ctl_offs = 0x380,
 		.pwr_sta_offs = 0x16c,
@@ -442,6 +468,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_KEEP_DEFAULT_OFF | MTK_SCPD_ACTIVE_WAKEUP,
 	},
 	[MT8195_POWER_DOMAIN_HDMI_RX] = {
+		.name = "hdmi_rx",
 		.sta_mask = BIT(19),
 		.ctl_offs = 0x384,
 		.pwr_sta_offs = 0x16c,
@@ -451,6 +478,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_KEEP_DEFAULT_OFF | MTK_SCPD_ACTIVE_WAKEUP,
 	},
 	[MT8195_POWER_DOMAIN_WPESYS] = {
+		.name = "wpesys",
 		.sta_mask = BIT(15),
 		.ctl_offs = 0x374,
 		.pwr_sta_offs = 0x16c,
@@ -473,6 +501,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		},
 	},
 	[MT8195_POWER_DOMAIN_VDEC0] = {
+		.name = "vdec0",
 		.sta_mask = BIT(20),
 		.ctl_offs = 0x388,
 		.pwr_sta_offs = 0x16c,
@@ -500,6 +529,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_KEEP_DEFAULT_OFF,
 	},
 	[MT8195_POWER_DOMAIN_VDEC1] = {
+		.name = "vdec1",
 		.sta_mask = BIT(21),
 		.ctl_offs = 0x38C,
 		.pwr_sta_offs = 0x16c,
@@ -519,6 +549,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_KEEP_DEFAULT_OFF,
 	},
 	[MT8195_POWER_DOMAIN_VDEC2] = {
+		.name = "vdec2",
 		.sta_mask = BIT(22),
 		.ctl_offs = 0x390,
 		.pwr_sta_offs = 0x16c,
@@ -538,6 +569,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_KEEP_DEFAULT_OFF,
 	},
 	[MT8195_POWER_DOMAIN_VENC] = {
+		.name = "venc",
 		.sta_mask = BIT(23),
 		.ctl_offs = 0x394,
 		.pwr_sta_offs = 0x16c,
@@ -561,6 +593,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_KEEP_DEFAULT_OFF,
 	},
 	[MT8195_POWER_DOMAIN_VENC_CORE1] = {
+		.name = "venc_core1",
 		.sta_mask = BIT(24),
 		.ctl_offs = 0x398,
 		.pwr_sta_offs = 0x16c,
@@ -580,6 +613,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_KEEP_DEFAULT_OFF,
 	},
 	[MT8195_POWER_DOMAIN_IMG] = {
+		.name = "img",
 		.sta_mask = BIT(29),
 		.ctl_offs = 0x3AC,
 		.pwr_sta_offs = 0x16c,
@@ -603,6 +637,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_KEEP_DEFAULT_OFF,
 	},
 	[MT8195_POWER_DOMAIN_DIP] = {
+		.name = "dip",
 		.sta_mask = BIT(30),
 		.ctl_offs = 0x3B0,
 		.pwr_sta_offs = 0x16c,
@@ -612,6 +647,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_KEEP_DEFAULT_OFF,
 	},
 	[MT8195_POWER_DOMAIN_IPE] = {
+		.name = "ipe",
 		.sta_mask = BIT(31),
 		.ctl_offs = 0x3B4,
 		.pwr_sta_offs = 0x16c,
@@ -631,6 +667,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_KEEP_DEFAULT_OFF,
 	},
 	[MT8195_POWER_DOMAIN_CAM] = {
+		.name = "cam",
 		.sta_mask = BIT(25),
 		.ctl_offs = 0x39C,
 		.pwr_sta_offs = 0x16c,
@@ -662,6 +699,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_KEEP_DEFAULT_OFF,
 	},
 	[MT8195_POWER_DOMAIN_CAM_RAWA] = {
+		.name = "cam_rawa",
 		.sta_mask = BIT(26),
 		.ctl_offs = 0x3A0,
 		.pwr_sta_offs = 0x16c,
@@ -671,6 +709,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_KEEP_DEFAULT_OFF,
 	},
 	[MT8195_POWER_DOMAIN_CAM_RAWB] = {
+		.name = "cam_rawb",
 		.sta_mask = BIT(27),
 		.ctl_offs = 0x3A4,
 		.pwr_sta_offs = 0x16c,
@@ -680,6 +719,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.caps = MTK_SCPD_KEEP_DEFAULT_OFF,
 	},
 	[MT8195_POWER_DOMAIN_CAM_MRAW] = {
+		.name = "cam_mraw",
 		.sta_mask = BIT(28),
 		.ctl_offs = 0x3A8,
 		.pwr_sta_offs = 0x16c,
