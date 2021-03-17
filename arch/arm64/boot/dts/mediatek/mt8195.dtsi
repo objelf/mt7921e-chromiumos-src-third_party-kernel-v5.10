@@ -359,29 +359,29 @@
 				#power-domain-cells = <1>;
 
 				/* power domain of the SoC */
-				pcie_mac_p0@MT8195_POWER_DOMAIN_PCIE_MAC_P0 {
+				power-domain@MT8195_POWER_DOMAIN_PCIE_MAC_P0 {
 					reg = <MT8195_POWER_DOMAIN_PCIE_MAC_P0>;
 					mediatek,infracfg = <&infracfg_ao>;
 					#power-domain-cells = <0>;
 				};
 
-				pcie_mac_p1@MT8195_POWER_DOMAIN_PCIE_MAC_P1 {
+				power-domain@MT8195_POWER_DOMAIN_PCIE_MAC_P1 {
 					reg = <MT8195_POWER_DOMAIN_PCIE_MAC_P1>;
 					mediatek,infracfg = <&infracfg_ao>;
 					#power-domain-cells = <0>;
 				};
 
-				pcie_phy@MT8195_POWER_DOMAIN_PCIE_PHY {
+				power-domain@MT8195_POWER_DOMAIN_PCIE_PHY {
 					reg = <MT8195_POWER_DOMAIN_PCIE_PHY>;
 					#power-domain-cells = <0>;
 				};
 
-				ssusb_pcie_phy@MT8195_POWER_DOMAIN_SSUSB_PCIE_PHY {
+				power-domain@MT8195_POWER_DOMAIN_SSUSB_PCIE_PHY {
 					reg = <MT8195_POWER_DOMAIN_SSUSB_PCIE_PHY>;
 					#power-domain-cells = <0>;
 				};
 
-				csi_rx_top@MT8195_POWER_DOMAIN_CSI_RX_TOP {
+				power-domain@MT8195_POWER_DOMAIN_CSI_RX_TOP {
 					reg = <MT8195_POWER_DOMAIN_CSI_RX_TOP>;
 					clocks = <&topckgen CLK_TOP_SENINF_SEL>,
 						 <&topckgen CLK_TOP_SENINF2_SEL>;
@@ -389,14 +389,14 @@
 					#power-domain-cells = <0>;
 				};
 
-				ether@MT8195_POWER_DOMAIN_ETHER {
+				power-domain@MT8195_POWER_DOMAIN_ETHER {
 					reg = <MT8195_POWER_DOMAIN_ETHER>;
 					clocks = <&pericfg_ao CLK_PERI_AO_ETHERNET_MAC>;
 					clock-names = "ether";
 					#power-domain-cells = <0>;
 				};
 
-				adsp@MT8195_POWER_DOMAIN_ADSP {
+				power-domain@MT8195_POWER_DOMAIN_ADSP {
 					reg = <MT8195_POWER_DOMAIN_ADSP>;
 					clocks = <&topckgen CLK_TOP_ADSP_SEL>;
 					clock-names = "adsp";
@@ -404,7 +404,7 @@
 					#size-cells = <0>;
 					#power-domain-cells = <1>;
 
-					audio@MT8195_POWER_DOMAIN_AUDIO {
+					power-domain@MT8195_POWER_DOMAIN_AUDIO {
 						reg = <MT8195_POWER_DOMAIN_AUDIO>;
 						clocks = <&topckgen CLK_TOP_A1SYS_HP_SEL>,
 							 <&topckgen CLK_TOP_AUD_INTBUS_SEL>,
@@ -417,7 +417,7 @@
 					};
 				};
 
-				audio_asrc@MT8195_POWER_DOMAIN_AUDIO_ASRC {
+				power-domain@MT8195_POWER_DOMAIN_AUDIO_ASRC {
 					reg = <MT8195_POWER_DOMAIN_AUDIO_ASRC>;
 					clocks = <&topckgen CLK_TOP_AUDIO_LOCAL_BUS_SEL>,
 						 <&topckgen CLK_TOP_ASM_L_SEL>,
@@ -427,7 +427,7 @@
 					#power-domain-cells = <0>;
 				};
 
-				nna@MT8195_POWER_DOMAIN_NNA {
+				power-domain@MT8195_POWER_DOMAIN_NNA {
 					reg = <MT8195_POWER_DOMAIN_NNA>;
 					clocks = <&topckgen CLK_TOP_NNA0_SEL>;
 					clock-names = "nna";
@@ -436,26 +436,26 @@
 					#size-cells = <0>;
 					#power-domain-cells = <1>;
 
-					nna0@MT8195_POWER_DOMAIN_NNA0 {
+					power-domain@MT8195_POWER_DOMAIN_NNA0 {
 						reg = <MT8195_POWER_DOMAIN_NNA0>;
 						mediatek,infracfg = <&infracfg_ao>;
 						#power-domain-cells = <0>;
 					};
 
-					nna1@MT8195_POWER_DOMAIN_NNA1 {
+					power-domain@MT8195_POWER_DOMAIN_NNA1 {
 						reg = <MT8195_POWER_DOMAIN_NNA1>;
 						mediatek,infracfg = <&infracfg_ao>;
 						#power-domain-cells = <0>;
 					};
 				};
 
-				mfg0@MT8195_POWER_DOMAIN_MFG0 {
+				power-domain@MT8195_POWER_DOMAIN_MFG0 {
 					reg = <MT8195_POWER_DOMAIN_MFG0>;
 					#address-cells = <1>;
 					#size-cells = <0>;
 					#power-domain-cells = <1>;
 
-					mfg1@MT8195_POWER_DOMAIN_MFG1 {
+					power-domain@MT8195_POWER_DOMAIN_MFG1 {
 						reg = <MT8195_POWER_DOMAIN_MFG1>;
 						clocks = <&apmixedsys CLK_APMIXED_MFGPLL>;
 						clock-names = "mfg";
@@ -464,34 +464,34 @@
 						#size-cells = <0>;
 						#power-domain-cells = <1>;
 
-						mfg2@MT8195_POWER_DOMAIN_MFG2 {
+						power-domain@MT8195_POWER_DOMAIN_MFG2 {
 							reg = <MT8195_POWER_DOMAIN_MFG2>;
 							#power-domain-cells = <0>;
 						};
 
-						mfg3@MT8195_POWER_DOMAIN_MFG3 {
+						power-domain@MT8195_POWER_DOMAIN_MFG3 {
 							reg = <MT8195_POWER_DOMAIN_MFG3>;
 							#power-domain-cells = <0>;
 						};
 
-						mfg4@MT8195_POWER_DOMAIN_MFG4 {
+						power-domain@MT8195_POWER_DOMAIN_MFG4 {
 							reg = <MT8195_POWER_DOMAIN_MFG4>;
 							#power-domain-cells = <0>;
 						};
 
-						mfg5@MT8195_POWER_DOMAIN_MFG5 {
+						power-domain@MT8195_POWER_DOMAIN_MFG5 {
 							reg = <MT8195_POWER_DOMAIN_MFG5>;
 							#power-domain-cells = <0>;
 						};
 
-						mfg6@MT8195_POWER_DOMAIN_MFG6 {
+						power-domain@MT8195_POWER_DOMAIN_MFG6 {
 							reg = <MT8195_POWER_DOMAIN_MFG6>;
 							#power-domain-cells = <0>;
 						};
 					};
 				};
 
-				vppsys0@MT8195_POWER_DOMAIN_VPPSYS0 {
+				power-domain@MT8195_POWER_DOMAIN_VPPSYS0 {
 					reg = <MT8195_POWER_DOMAIN_VPPSYS0>;
 					clocks = <&topckgen CLK_TOP_VPP_SEL>,
 						 <&topckgen CLK_TOP_CAM_SEL>,
@@ -533,7 +533,7 @@
 					#size-cells = <0>;
 					#power-domain-cells = <1>;
 
-					vdec1@MT8195_POWER_DOMAIN_VDEC1 {
+					power-domain@MT8195_POWER_DOMAIN_VDEC1 {
 						reg = <MT8195_POWER_DOMAIN_VDEC1>;
 						clocks = <&vdecsys CLK_VDEC_LARB1>;
 						clock-names = "vdec1-0";
@@ -541,13 +541,13 @@
 						#power-domain-cells = <0>;
 					};
 
-					venc_core1@MT8195_POWER_DOMAIN_VENC_CORE1 {
+					power-domain@MT8195_POWER_DOMAIN_VENC_CORE1 {
 						reg = <MT8195_POWER_DOMAIN_VENC_CORE1>;
 						mediatek,infracfg = <&infracfg_ao>;
 						#power-domain-cells = <0>;
 					};
 
-					vdosys0@MT8195_POWER_DOMAIN_VDOSYS0 {
+					power-domain@MT8195_POWER_DOMAIN_VDOSYS0 {
 						reg = <MT8195_POWER_DOMAIN_VDOSYS0>;
 						clocks = <&topckgen CLK_TOP_CFG_VDO0>,
 							 <&vdosys0 CLK_VDO0_SMI_GALS>,
@@ -564,7 +564,7 @@
 						#size-cells = <0>;
 						#power-domain-cells = <1>;
 
-						vppsys1@MT8195_POWER_DOMAIN_VPPSYS1 {
+						power-domain@MT8195_POWER_DOMAIN_VPPSYS1 {
 							reg = <MT8195_POWER_DOMAIN_VPPSYS1>;
 							clocks = <&topckgen CLK_TOP_CFG_VPP1>,
 								 <&vppsys1 CLK_VPP1_VPPSYS1_GALS>,
@@ -575,7 +575,7 @@
 							#power-domain-cells = <0>;
 						};
 
-						wepsys@MT8195_POWER_DOMAIN_WPESYS {
+						power-domain@MT8195_POWER_DOMAIN_WPESYS {
 							reg = <MT8195_POWER_DOMAIN_WPESYS>;
 							clocks = <&wpesys CLK_WPE_SMI_LARB7>,
 								 <&wpesys CLK_WPE_SMI_LARB8>,
@@ -587,7 +587,7 @@
 							#power-domain-cells = <0>;
 						};
 
-						vdec0@MT8195_POWER_DOMAIN_VDEC0 {
+						power-domain@MT8195_POWER_DOMAIN_VDEC0 {
 							reg = <MT8195_POWER_DOMAIN_VDEC0>;
 							clocks = <&vdecsys_soc CLK_VDEC_SOC_LARB1>;
 							clock-names = "vdec0-0";
@@ -595,7 +595,7 @@
 							#power-domain-cells = <0>;
 						};
 
-						vdec2@MT8195_POWER_DOMAIN_VDEC2 {
+						power-domain@MT8195_POWER_DOMAIN_VDEC2 {
 							reg = <MT8195_POWER_DOMAIN_VDEC2>;
 							clocks = <&vdecsys_core1 CLK_VDEC_CORE1_LARB1>;
 							clock-names = "vdec2-0";
@@ -603,13 +603,13 @@
 							#power-domain-cells = <0>;
 						};
 
-						venc@MT8195_POWER_DOMAIN_VENC {
+						power-domain@MT8195_POWER_DOMAIN_VENC {
 							reg = <MT8195_POWER_DOMAIN_VENC>;
 							mediatek,infracfg = <&infracfg_ao>;
 							#power-domain-cells = <0>;
 						};
 
-						vdosys1@MT8195_POWER_DOMAIN_VDOSYS1 {
+						power-domain@MT8195_POWER_DOMAIN_VDOSYS1 {
 							reg = <MT8195_POWER_DOMAIN_VDOSYS1>;
 							clocks = <&topckgen CLK_TOP_CFG_VDO1>,
 								 <&vdosys1 CLK_VDO1_SMI_LARB2>,
@@ -622,26 +622,26 @@
 							#size-cells = <0>;
 							#power-domain-cells = <1>;
 
-							dp_tx@MT8195_POWER_DOMAIN_DP_TX {
+							power-domain@MT8195_POWER_DOMAIN_DP_TX {
 								reg = <MT8195_POWER_DOMAIN_DP_TX>;
 								mediatek,infracfg = <&infracfg_ao>;
 								#power-domain-cells = <0>;
 							};
 
-							epd_tx@MT8195_POWER_DOMAIN_EPD_TX {
+							power-domain@MT8195_POWER_DOMAIN_EPD_TX {
 								reg = <MT8195_POWER_DOMAIN_EPD_TX>;
 								mediatek,infracfg = <&infracfg_ao>;
 								#power-domain-cells = <0>;
 							};
 
-							hdmi_tx@MT8195_POWER_DOMAIN_HDMI_TX {
+							power-domain@MT8195_POWER_DOMAIN_HDMI_TX {
 								reg = <MT8195_POWER_DOMAIN_HDMI_TX>;
 								clocks = <&topckgen CLK_TOP_HDMI_APB_SEL>;
 								clock-names = "hdmi_tx";
 								#power-domain-cells = <0>;
 							};
 
-							hdmi_rx@MT8195_POWER_DOMAIN_HDMI_RX {
+							power-domain@MT8195_POWER_DOMAIN_HDMI_RX {
 								reg = <MT8195_POWER_DOMAIN_HDMI_RX>;
 								clocks = <&topckgen CLK_TOP_HDMI_APB_SEL>;
 								clock-names = "hdmi_rx";
@@ -649,7 +649,7 @@
 							};
 						};
 
-						img@MT8195_POWER_DOMAIN_IMG {
+						power-domain@MT8195_POWER_DOMAIN_IMG {
 							reg = <MT8195_POWER_DOMAIN_IMG>;
 							clocks = <&imgsys CLK_IMG_LARB9>,
 								 <&imgsys CLK_IMG_GALS>;
@@ -659,12 +659,12 @@
 							#size-cells = <0>;
 							#power-domain-cells = <1>;
 
-							dip@MT8195_POWER_DOMAIN_DIP {
+							power-domain@MT8195_POWER_DOMAIN_DIP {
 								reg = <MT8195_POWER_DOMAIN_DIP>;
 								#power-domain-cells = <0>;
 							};
 
-							ipe@MT8195_POWER_DOMAIN_IPE {
+							power-domain@MT8195_POWER_DOMAIN_IPE {
 								reg = <MT8195_POWER_DOMAIN_IPE>;
 								clocks = <&topckgen CLK_TOP_IPE_SEL>,
 									 <&imgsys CLK_IMG_IPE>,
@@ -675,7 +675,7 @@
 							};
 						};
 
-						cam@MT8195_POWER_DOMAIN_CAM {
+						power-domain@MT8195_POWER_DOMAIN_CAM {
 							reg = <MT8195_POWER_DOMAIN_CAM>;
 							clocks = <&camsys CLK_CAM_LARB13>,
 								 <&camsys CLK_CAM_LARB14>,
@@ -689,17 +689,17 @@
 							#size-cells = <0>;
 							#power-domain-cells = <1>;
 
-							cam_rawa@MT8195_POWER_DOMAIN_CAM_RAWA {
+							power-domain@MT8195_POWER_DOMAIN_CAM_RAWA {
 								reg = <MT8195_POWER_DOMAIN_CAM_RAWA>;
 								#power-domain-cells = <0>;
 							};
 
-							cam_rawb@MT8195_POWER_DOMAIN_CAM_RAWB {
+							power-domain@MT8195_POWER_DOMAIN_CAM_RAWB {
 								reg = <MT8195_POWER_DOMAIN_CAM_RAWB>;
 								#power-domain-cells = <0>;
 							};
 
-							cam_mraw@MT8195_POWER_DOMAIN_CAM_MRAW {
+							power-domain@MT8195_POWER_DOMAIN_CAM_MRAW {
 								reg = <MT8195_POWER_DOMAIN_CAM_MRAW>;
 								#power-domain-cells = <0>;
 							};
