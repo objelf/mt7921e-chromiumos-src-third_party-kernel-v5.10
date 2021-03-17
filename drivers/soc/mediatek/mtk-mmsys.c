@@ -12,6 +12,7 @@
 
 #include "mtk-mmsys.h"
 #include "mt8183-mmsys.h"
+#include "mt8195-mmsys.h"
 
 static const struct mtk_mmsys_driver_data mt2701_mmsys_driver_data = {
 	.clk_driver = "clk-mt2701-mm",
@@ -43,6 +44,12 @@ static const struct mtk_mmsys_driver_data mt8183_mmsys_driver_data = {
 	.clk_driver = "clk-mt8183-mm",
 	.routes = mmsys_mt8183_routing_table,
 	.num_routes = ARRAY_SIZE(mmsys_mt8183_routing_table),
+};
+
+static const struct mtk_mmsys_driver_data mt8195_mmsys_driver_data = {
+	.clk_driver = "clk-mt8195-vdo0",
+	.routes = mmsys_mt8195_routing_table,
+	.num_routes = ARRAY_SIZE(mmsys_mt8195_routing_table),
 };
 
 struct mtk_mmsys {
@@ -145,6 +152,10 @@ static const struct of_device_id of_match_mtk_mmsys[] = {
 	{
 		.compatible = "mediatek,mt8183-mmsys",
 		.data = &mt8183_mmsys_driver_data,
+	},
+	{
+		.compatible = "mediatek,mt8195-vdosys",
+		.data = &mt8195_mmsys_driver_data,
 	},
 	{ }
 };
