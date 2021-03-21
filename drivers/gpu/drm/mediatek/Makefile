@@ -8,6 +8,7 @@ mediatek-drm-y := mtk_disp_ccorr.o \
 		  mtk_disp_gamma.o \
 		  mtk_disp_ovl.o \
 		  mtk_disp_rdma.o \
+		  mtk_disp_merge.o \
 		  mtk_drm_crtc.o \
 		  mtk_drm_ddp_comp.o \
 		  mtk_drm_drv.o \

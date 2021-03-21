@@ -34,6 +34,7 @@ enum mtk_ddp_comp_type {
 	MTK_DISP_MUTEX,
 	MTK_DISP_OD,
 	MTK_DISP_BLS,
+	MTK_DISP_MERGE,
 	MTK_DDP_COMP_TYPE_MAX,
 };
 
