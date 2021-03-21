@@ -105,4 +105,9 @@ void mtk_dsc_config(struct device *dev, unsigned int width,
 void mtk_dsc_start(struct device *dev);
 void mtk_dsc_stop(struct device *dev);
 
+#ifdef CONFIG_MTK_DPTX_SUPPORT
+void mtk_dpintf_start(struct device *dev);
+void mtk_dpintf_stop(struct device *dev);
+#endif
+
 #endif

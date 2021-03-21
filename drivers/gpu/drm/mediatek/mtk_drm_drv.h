@@ -55,5 +55,7 @@ extern struct platform_driver mtk_disp_merge_driver;
 extern struct platform_driver mtk_disp_dsc_driver;
 extern struct platform_driver mtk_dpi_driver;
 extern struct platform_driver mtk_dsi_driver;
+extern struct platform_driver mtk_dpintf_driver;
+extern struct platform_driver mtk_dp_tx_driver;
 
 #endif /* MTK_DRM_DRV_H */

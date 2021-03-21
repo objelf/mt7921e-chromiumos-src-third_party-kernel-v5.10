@@ -361,6 +361,13 @@ static const struct mtk_ddp_comp_funcs ddp_ufoe = {
 	.start = mtk_ufoe_start,
 };
 
+#ifdef CONFIG_MTK_DPTX_SUPPORT
+static const struct mtk_ddp_comp_funcs ddp_dp_intf = {
+	.start = mtk_dpintf_start,
+	.stop = mtk_dpintf_stop,
+};
+#endif
+
 static const char * const mtk_ddp_comp_stem[MTK_DDP_COMP_TYPE_MAX] = {
 	[MTK_DISP_OVL] = "ovl",
 	[MTK_DISP_OVL_2L] = "ovl-2l",
@@ -380,6 +387,8 @@ static const char * const mtk_ddp_comp_stem[MTK_DDP_COMP_TYPE_MAX] = {
 	[MTK_DISP_BLS] = "bls",
 	[MTK_DISP_MERGE] = "merge",
 	[MTK_DISP_DSC] = "dsc",
+	[MTK_DISP_DPTX] = "dptx",
+	[MTK_DP_INTF] = "dp-intf",
 };
 
 struct mtk_ddp_comp_match {
@@ -427,6 +436,10 @@ static const struct mtk_ddp_comp_match mtk_ddp_matches[DDP_COMPONENT_ID_MAX] = {
 	[DDP_COMPONENT_UFOE]	= { MTK_DISP_UFOE,	0, &ddp_ufoe },
 	[DDP_COMPONENT_WDMA0]	= { MTK_DISP_WDMA,	0, NULL },
 	[DDP_COMPONENT_WDMA1]	= { MTK_DISP_WDMA,	1, NULL },
+#ifdef CONFIG_MTK_DPTX_SUPPORT
+	[DDP_COMPONENT_DP_INTF0]		= {MTK_DP_INTF,	0, &ddp_dp_intf },
+	[DDP_COMPONENT_DPTX]		= {MTK_DISP_DPTX,	0, NULL },
+#endif
 };
 
 static bool mtk_drm_find_comp_in_ddp(struct device *dev,
@@ -509,6 +522,8 @@ int mtk_ddp_comp_init(struct device_node *node, struct mtk_ddp_comp *comp,
 	    type == MTK_DISP_GAMMA ||
 	    type == MTK_DISP_MERGE ||
 	    type == MTK_DISP_DSC ||
+	    type == MTK_DP_INTF ||
+	    type == MTK_DISP_DPTX ||
 	    type == MTK_DPI ||
 	    type == MTK_DSI ||
 	    type == MTK_DISP_OVL ||

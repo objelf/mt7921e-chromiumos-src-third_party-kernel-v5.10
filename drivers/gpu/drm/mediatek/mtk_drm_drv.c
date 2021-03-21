@@ -157,7 +157,14 @@ static const enum mtk_ddp_comp_id mt8195_mtk_ddp_main[] = {
 	DDP_COMPONENT_AAL0,
 	DDP_COMPONENT_GAMMA,
 	DDP_COMPONENT_DITHER,
+#ifdef CONFIG_MTK_DPTX_SUPPORT
+	DDP_COMPONENT_DSC0,
+	DDP_COMPONENT_MERGE0,
+	DDP_COMPONENT_DP_INTF0,
+#else
 	DDP_COMPONENT_DSI0,
+#endif
+
 };
 
 static const enum mtk_ddp_comp_id mt8195_mtk_ddp_ext[] = {
@@ -483,6 +490,10 @@ static const struct of_device_id mtk_ddp_comp_dt_ids[] = {
 	  .data = (void *)MTK_DISP_DSC },
 	{ .compatible = "mediatek,mt8173-disp-ufoe",
 	  .data = (void *)MTK_DISP_UFOE },
+#ifdef CONFIG_MTK_DPTX_SUPPORT
+	{ .compatible = "mediatek,mt8195-dpintf",
+	  .data = (void *)MTK_DP_INTF },
+#else
 	{ .compatible = "mediatek,mt2701-dsi",
 	  .data = (void *)MTK_DSI },
 	{ .compatible = "mediatek,mt8173-dsi",
@@ -495,6 +506,7 @@ static const struct of_device_id mtk_ddp_comp_dt_ids[] = {
 	  .data = (void *)MTK_DPI },
 	{ .compatible = "mediatek,mt8183-dpi",
 	  .data = (void *)MTK_DPI },
+#endif
 	{ .compatible = "mediatek,mt2701-disp-mutex",
 	  .data = (void *)MTK_DISP_MUTEX },
 	{ .compatible = "mediatek,mt2712-disp-mutex",
@@ -602,6 +614,8 @@ static int mtk_drm_probe(struct platform_device *pdev)
 		    comp_type == MTK_DISP_GAMMA ||
 		    comp_type == MTK_DISP_MERGE ||
 		    comp_type == MTK_DISP_DSC ||
+		    comp_type == MTK_DP_INTF ||
+		    comp_type == MTK_DISP_DPTX ||
 		    comp_type == MTK_DISP_OVL ||
 		    comp_type == MTK_DISP_OVL_2L ||
 		    comp_type == MTK_DISP_RDMA ||
@@ -705,7 +719,12 @@ static struct platform_driver * const mtk_drm_drivers[] = {
 	&mtk_drm_platform_driver,
 	&mtk_disp_merge_driver,
 	&mtk_disp_dsc_driver,
+#ifdef CONFIG_MTK_DPTX_SUPPORT
+	&mtk_dp_tx_driver,
+	&mtk_dpintf_driver,
+#else
 	&mtk_dsi_driver,
+#endif
 };
 
 static int __init mtk_drm_init(void)
