@@ -97,4 +97,12 @@ void mtk_merge_config(struct device *dev, unsigned int width,
 void mtk_merge_start(struct device *dev);
 void mtk_merge_stop(struct device *dev);
 
+int mtk_dsc_clk_enable(struct device *dev);
+void mtk_dsc_clk_disable(struct device *dev);
+void mtk_dsc_config(struct device *dev, unsigned int width,
+		     unsigned int height, unsigned int vrefresh,
+		     unsigned int bpc, struct cmdq_pkt *cmdq_pkt);
+void mtk_dsc_start(struct device *dev);
+void mtk_dsc_stop(struct device *dev);
+
 #endif

@@ -35,6 +35,7 @@ enum mtk_ddp_comp_type {
 	MTK_DISP_OD,
 	MTK_DISP_BLS,
 	MTK_DISP_MERGE,
+	MTK_DISP_DSC,
 	MTK_DDP_COMP_TYPE_MAX,
 };
 
@@ -72,6 +73,7 @@ struct mtk_ddp_comp {
 	struct device *dev;
 	int irq;
 	enum mtk_ddp_comp_id id;
+	struct mtk_drm_crtc *mtk_crtc;
 	const struct mtk_ddp_comp_funcs *funcs;
 };
 
