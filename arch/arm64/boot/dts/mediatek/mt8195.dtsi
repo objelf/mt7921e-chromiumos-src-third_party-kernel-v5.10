@@ -2029,6 +2029,29 @@
 			power-domains = <&spm MT8195_POWER_DOMAIN_VDOSYS0>;
 		};
 
+		dp_intf0: dp_intf0@1c015000 {
+			status = "disabled";
+			compatible = "mediatek,mt8195-dpintf";
+			reg = <0 0x1c015000 0 0x1000>;
+			interrupts = <GIC_SPI 657 IRQ_TYPE_LEVEL_HIGH 0>;
+			clocks = <&vdosys0  CLK_VDO0_DP_INTF0>,
+				<&vdosys0 CLK_VDO0_DP_INTF0_DP_INTF>,
+				<&topckgen CLK_TOP_EDP_SEL>,
+				<&topckgen CLK_TOP_TVDPLL1_D2>,
+				<&topckgen CLK_TOP_TVDPLL1_D4>,
+				<&topckgen CLK_TOP_TVDPLL1_D8>,
+				<&topckgen CLK_TOP_TVDPLL1_D16>,
+				<&topckgen CLK_TOP_TVDPLL1>;
+			clock-names = "hf_fmm_ck",
+				      "hf_fdp_ck",
+				      "MUX_DP",
+				      "TVDPLL_D2",
+				      "TVDPLL_D4",
+				      "TVDPLL_D8",
+				      "TVDPLL_D16",
+				      "DPI_CK";
+		};
+
 		smi_common0: smi@1c01b000 {
 			compatible = "mediatek,mt8195-smi-common";
 			mediatek,common-id = <0>;
@@ -2138,6 +2161,14 @@
 			cec = <&cec>;
 			ddc-i2c-bus = <&hdmiddc0>;
 			status = "disabled";
+		};
+
+		edp_tx: edp_tx@1c500000 {
+			status = "disabled";
+			compatible = "mediatek,mt8195-dp_tx";
+			reg = <0 0x1c500000 0 0x8000>;
+			power-domains = <&spm MT8195_POWER_DOMAIN_EPD_TX>;
+			interrupts = <GIC_SPI 676 IRQ_TYPE_LEVEL_HIGH 0>;
 		};
 	};
 
