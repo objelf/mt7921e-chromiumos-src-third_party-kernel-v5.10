@@ -322,6 +322,18 @@
 			clocks = <&clk26m>;
 		};
 
+		pwrap: pwrap@10024000 {
+			compatible = "mediatek,mt8195-pwrap", "syscon";
+			reg = <0 0x10024000 0 0x1000>;
+			reg-names = "pwrap";
+			interrupts = <GIC_SPI 243 IRQ_TYPE_LEVEL_HIGH 0>;
+			clocks = <&infracfg_ao CLK_INFRA_AO_PMIC_AP>,
+				 <&infracfg_ao CLK_INFRA_AO_PMIC_TMR>;
+			clock-names = "spi", "wrap";
+			assigned-clocks = <&topckgen CLK_TOP_PWRAP_ULPOSC_SEL>;
+			assigned-clock-parents = <&topckgen CLK_TOP_ULPOSC_D10>;
+		};
+
 		uart0: serial@11001100 {
 			compatible = "mediatek,mt8195-uart", "mediatek,mt6577-uart";
 			reg = <0 0x11001100 0 0x100>;
