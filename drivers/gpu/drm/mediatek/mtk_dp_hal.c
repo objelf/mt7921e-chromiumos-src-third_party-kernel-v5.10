@@ -72,10 +72,12 @@ void mtk_dp_write_byte(struct mtk_dp *mtk_dp,
 
 static unsigned long mtk_dp_atf_call(unsigned int cmd, unsigned int para)
 {
-#if 0
+#if 1
 	struct arm_smccc_res res;
 
-	arm_smccc_smc(MTK_SIP_DP_CONTROL, cmd, para,
+#define MTK_SIP_DP_CONTROL_AARCH32 0x82000523
+
+	arm_smccc_smc(MTK_SIP_DP_CONTROL_AARCH32, cmd, para,
 		0, 0, 0, 0, 0, &res);
 
 	DPTXDBG("%s cmd 0x%x, p1 0x%x, ret 0x%x-0x%x",

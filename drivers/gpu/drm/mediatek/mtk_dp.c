@@ -3104,6 +3104,11 @@ static int mtk_drm_dp_probe(struct platform_device *pdev)
 	mtk_dp->notify_task = kthread_run(mtk_dp_notify_kthread,
 		(void *)mtk_dp, "mtk_dp_notify_kthread");
 
+	/* power domain */
+	DPTXMSG("turn on power domain\n");
+	pm_runtime_enable(dev);
+	pm_runtime_get_sync(dev);
+
 	DPTXMSG("probe done\n");
 
 	return 0;
