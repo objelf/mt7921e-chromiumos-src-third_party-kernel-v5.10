@@ -31,14 +31,14 @@ properties:
 
   reg:
     description: |
-      Physical address base for gpio base registers. There are 11 GPIO
+      Physical address base for gpio base registers. There are 8 GPIO
       physical address base in mt8195.
-    maxItems: 11
+    maxItems: 8
 
   reg-names:
     description: |
       Gpio base register names.
-    maxItems: 11
+    maxItems: 8
 
   interrupt-controller: true
 
@@ -51,7 +51,7 @@ properties:
 
 #PIN CONFIGURATION NODES
 patternProperties:
-  '^pins':
+  '-pins$':
     type: object
     description: |
       A pinctrl node should contain at least one subnodes representing the
@@ -62,12 +62,12 @@ patternProperties:
       An example of using macro:
       pincontroller {
         /* GPIO0 set as multifunction GPIO0 */
-        state_0_node_a {
+        gpio_pin {
           pinmux = <PINMUX_GPIO0__FUNC_GPIO0>;
         };
-        /* GPIO1 set as multifunction PWM */
-        state_0_node_b {
-          pinmux = <PINMUX_GPIO1__FUNC_PWM_1>;
+        /* GPIO8 set as multifunction SDA0 */
+        i2c0_pin {
+          pinmux = <PINMUX_GPIO8__FUNC_SDA0>;
         };
       };
     $ref: "pinmux-node.yaml"
@@ -81,9 +81,9 @@ patternProperties:
 
       drive-strength:
         description: |
-          It can support some arguments, such as MTK_DRIVE_4mA, MTK_DRIVE_6mA, etc. See
-          dt-bindings/pinctrl/mt65xx.h. It can only support 2/4/6/8/10/12/14/16mA in mt8195.
-        enum: [2, 4, 6, 8, 10, 12, 14, 16]
+          It can support some arguments which is from 0 to 7. It can only support
+          2/4/6/8/10/12/14/16mA in mt8195.
+        enum: [0, 1, 2, 3, 4, 5, 6, 7]
 
       bias-pull-down: true
 
@@ -106,7 +106,7 @@ patternProperties:
     required:
       - pinmux
 
-    additionalProperties:  false
+    additionalProperties: false
 
 required:
   - compatible
@@ -125,22 +125,27 @@ examples:
             #include <dt-bindings/pinctrl/mt8195-pinfunc.h>
             #include <dt-bindings/interrupt-controller/arm-gic.h>
             pio: pinctrl@10005000 {
-										compatible = "mediatek,mt8195-pinctrl";
-										reg = <0 0x10005000 0 0x1000>,
-			    							  <0 0x11d30000 0 0x1000>,
-													<0 0x11d10000 0 0x1000>,
-													<0 0x11d40000 0 0x1000>,
-													<0 0x11e20000 0 0x1000>,
-													<0 0x11eb0000 0 0x1000>,
-													<0 0x11f40000 0 0x1000>,
-													<0 0x1000b000 0 0x1000>;
-										reg-names = "iocfg0", "iocfg_bl", "iocfg_bm",
-				    							"iocfg_br", "iocfg_lm", "iocfg_rb",
-				    							"iocfg_tl", "eint";
-										gpio-controller;
-										#gpio-cells = <2>;
-										gpio-ranges = <&pio 0 0 144>;
-										interrupt-controller;
-										interrupts = <GIC_SPI 212 IRQ_TYPE_LEVEL_HIGH 0>;
-										#interrupt-cells = <2>;
-						};
+                    compatible = "mediatek,mt8195-pinctrl";
+                    reg = <0x10005000 0x1000>,
+                          <0x11d10000 0x1000>,
+                          <0x11d30000 0x1000>,
+                          <0x11d40000 0x1000>,
+                          <0x11e20000 0x1000>,
+                          <0x11eb0000 0x1000>,
+                          <0x11f40000 0x1000>,
+                          <0x1000b000 0x1000>;
+                    reg-names = "iocfg0", "iocfg_bm", "iocfg_bl",
+                          "iocfg_br", "iocfg_lm", "iocfg_rb",
+                          "iocfg_tl", "eint";
+                    gpio-controller;
+                    #gpio-cells = <2>;
+                    gpio-ranges = <&pio 0 0 144>;
+                    interrupt-controller;
+                    interrupts = <GIC_SPI 225 IRQ_TYPE_LEVEL_HIGH 0>;
+                    #interrupt-cells = <2>;
+
+                    pio-pins {
+                      pinmux = <PINMUX_GPIO0__FUNC_GPIO0>;
+                      output-low;
+                    };
+            };
