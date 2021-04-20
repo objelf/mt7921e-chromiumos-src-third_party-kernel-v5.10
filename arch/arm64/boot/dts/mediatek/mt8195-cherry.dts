@@ -758,7 +758,9 @@
 
 	scp_pins: scp {
 		pins_scp_vreq {
-			pinmux = <PINMUX_GPIO76__FUNC_SCP_VREQ_VAO>;
+			pinmux = <PINMUX_GPIO76__FUNC_SCP_VREQ_VAO>,
+				 <PINMUX_GPIO102__FUNC_TP_UTXD1_AO>,
+				 <PINMUX_GPIO103__FUNC_TP_URXD1_AO>;
 			bias-disable;
 			input-enable;
 		};
