@@ -1368,6 +1368,7 @@
 				 <&pericfg_ao CLK_PERI_AO_SSUSB_3P_XHCI>,
 				 <&topckgen CLK_TOP_SSUSB_P3_REF>;
 			clock-names = "sys_ck", "xhci_ck", "ref_ck";
+			usb2-lpm-disable;
 			#address-cells = <2>;
 			#size-cells = <2>;
 			status = "disabled";
