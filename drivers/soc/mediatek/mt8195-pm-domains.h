@@ -33,6 +33,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 				    MT8195_TOP_AXI_PROT_EN_VDNR_1_CLR,
 				    MT8195_TOP_AXI_PROT_EN_VDNR_1_STA1),
 		},
+		.caps = MTK_SCPD_KEEP_ON,
 	},
 	[MT8195_POWER_DOMAIN_PCIE_MAC_P1] = {
 		.name = "pcie_mac_p1",
@@ -52,6 +53,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 				    MT8195_TOP_AXI_PROT_EN_VDNR_1_CLR,
 				    MT8195_TOP_AXI_PROT_EN_VDNR_1_STA1),
 		},
+		.caps = MTK_SCPD_KEEP_ON,
 	},
 	[MT8195_POWER_DOMAIN_PCIE_PHY] = {
 		.name = "pcie_phy",
@@ -59,7 +61,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.ctl_offs = 0x330,
 		.pwr_sta_offs = 0x174,
 		.pwr_sta2nd_offs = 0x178,
-		.caps = MTK_SCPD_ACTIVE_WAKEUP,
+		.caps = MTK_SCPD_ACTIVE_WAKEUP | MTK_SCPD_KEEP_ON,
 	},
 	[MT8195_POWER_DOMAIN_SSUSB_PCIE_PHY] = {
 		.name = "ssusb_pcie_phy",
@@ -67,7 +69,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8195[] = {
 		.ctl_offs = 0x334,
 		.pwr_sta_offs = 0x174,
 		.pwr_sta2nd_offs = 0x178,
-		.caps = MTK_SCPD_ACTIVE_WAKEUP,
+		.caps = MTK_SCPD_ACTIVE_WAKEUP | MTK_SCPD_KEEP_ON,
 	},
 	[MT8195_POWER_DOMAIN_CSI_RX_TOP] = {
 		.name = "csi_rx_top",

@@ -519,7 +519,7 @@ static void scpsys_remove_one_domain(struct scpsys_domain *pd)
 {
 	int ret;
 
-	if (scpsys_domain_is_on(pd))
+	if (scpsys_domain_is_on(pd) && !MTK_SCPD_CAPS(pd, MTK_SCPD_KEEP_ON))
 		scpsys_power_off(&pd->genpd);
 
 	/*
