@@ -40,44 +40,11 @@
 
 #define EDID_SIZE 0x200
 #define ENABLE_DPTX_SSC_FORCEON		0
-#define ENABLE_DPTX_FIX_LRLC		1
+#define ENABLE_DPTX_FIX_LRLC		0
 #define ENABLE_DPTX_SSC_OUTPUT		1
 #define ENABLE_DPTX_FIX_TPS2		0
 #define AUX_WRITE_READ_WAIT_TIME        20 //us
 #define DPTX_SUPPORT_DSC                0
-
-#define DPTX_AutoTest_ENABLE		0x1
-#if DPTX_AutoTest_ENABLE
-#define DPTX_TEST_LINK_TRAINING_EN	0x1
-#define DPTX_TEST_PATTERN_EN		0x0
-#define DPTX_TEST_EDID_READ_EN		0x0
-#define DPTX_PHY_TEST_PATTERN_EN	0x1
-
-#if DPTX_PHY_TEST_PATTERN_EN
-#define DPTX_TEST_D10_2_EN		0x1
-#define DPTX_TEST_SYMBERR_EN		0x0
-#define DPTX_TEST_PRBS7_EN		0x1
-#define DPTX_TEST_PHY80B_EN		0x1
-#define DPTX_TEST_HBR2EYE_EN		0x1
-#define DPTX_TEST_CP2520_P3_EN          0x1
-#else
-#define DPTX_TEST_D10_2_EN		0x0
-#define DPTX_TEST_SYMBERR_EN		0x0
-#define DPTX_TEST_PRBS7_EN		0x0
-#define DPTX_TEST_PHY80B_EN		0x0
-#define DPTX_TEST_HBR2EYE_EN		0x0
-#define DPTX_TEST_CP2520_P3_EN          0x0
-#endif
-
-#define PATTERN_NONE			0x0
-#define PATTERN_D10_2			0x1
-#define PATTERN_SYMBOL_ERR		0x2
-#define PATTERN_PRBS7			0x3
-#define PATTERN_80B			0x4
-#define PATTERN_HBR2_COM_EYE		0x5
-#define CP2520_PATTERN2                 0x6
-#define CP2520_PATTERN3                 0x7
-#endif
 
 enum DP_ATF_CMD {
 	DP_ATF_DUMP = 0x20,
@@ -223,6 +190,7 @@ struct mtk_dp {
 	bool enabled;
 	bool powered;
 	struct mtk_drm_private *priv;
+	struct mutex dp_lock;
 };
 
 #endif /*__DRTX_TYPE_H__*/

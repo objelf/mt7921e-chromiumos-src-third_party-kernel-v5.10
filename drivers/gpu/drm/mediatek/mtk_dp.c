@@ -34,6 +34,8 @@
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/mediatek_drm.h>
+#include <drm/drm_of.h>
+#include <drm/drm_panel.h>
 #include "mtk_drm_ddp_comp.h"
 #include <video/videomode.h>
 
@@ -42,110 +44,6 @@
 #include "mtk_drm_drv.h"
 #include "mtk_dp_api.h"
 #include "mtk_dp_reg.h"
-#ifdef DPTX_HDCP_ENABLE
-#include "mtk_dp_hdcp1x.h"
-#include "mtk_dp_hdcp2.h"
-#include "ca/tlcDpHdcp.h"
-#endif
-
-static struct mtk_dp *g_mtk_dp;
-static bool fakecablein;
-static int fakeres = FAKE_DEFAULT_RES;
-static int fakebpc = DP_COLOR_DEPTH_8BIT;
-struct mutex dp_lock;
-#ifdef DPTX_HDCP_ENABLE
-static bool g_hdcp_on;
-#endif
-static BYTE g_c0 = 32, g_cp1;
-
-enum DPTX_STATE {
-	DPTX_STATE_NO_DEVICE,
-	DPTX_STATE_ACTIVE,
-};
-
-struct notify_dev {
-	const char *name;
-	struct device *dev;
-	int index;
-	int state;
-
-	ssize_t (*print_name)(struct notify_dev *sdev, char *buf);
-	ssize_t (*print_state)(struct notify_dev *sdev, char *buf);
-};
-
-#ifdef DPTX_EXTCON_DEF
-struct extcon_dev *dptx_extcon;
-static const unsigned int dptx_cable[] = {
-	EXTCON_DISP_DP,// audio framework not support DP
-	EXTCON_NONE,
-};
-#endif
-
-struct notify_dev dptx_notify_data;
-struct class *switch_dp_class;
-static atomic_t device_count;
-
-struct drm_display_limit_mode {
-	int hdisplay;
-	int vdisplay;
-	int vrefresh;
-	int clock;
-	int valid;
-};
-
-static struct drm_display_limit_mode dp_plat_limit[] = {
-	{3840, 2160, 60, 594000, 1},
-	{3840, 2160, 30, 297000, 1},
-	{1080, 2460, 60, 174110, 1},
-	{1920, 1200, 60, 152128, 1},
-	{1920, 1080, 60, 148500, 1},
-	{1280, 720,  60,  74250, 1},
-	{ 640,  480, 60,  25200, 1},
-};
-
-static ssize_t state_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	int ret;
-	struct notify_dev *sdev = (struct notify_dev *)
-		dev_get_drvdata(dev);
-
-	if (sdev->print_state) {
-		ret = sdev->print_state(sdev, buf);
-		if (ret >= 0)
-			return ret;
-	}
-	return sprintf(buf, "%d\n", sdev->state);
-}
-
-static ssize_t name_show(struct device *dev, struct device_attribute *attr,
-		char *buf)
-{
-	int ret;
-	struct notify_dev *sdev = (struct notify_dev *)
-		dev_get_drvdata(dev);
-
-	if (sdev->print_name) {
-		ret = sdev->print_name(sdev, buf);
-		if (ret >= 0)
-			return ret;
-	}
-	return sprintf(buf, "%s\n", sdev->name);
-}
-
-static DEVICE_ATTR_RO(state);
-static DEVICE_ATTR_RO(name);
-
-static int create_switch_class(void)
-{
-	if (!switch_dp_class) {
-		switch_dp_class = class_create(THIS_MODULE, "dptxswitch");
-		if (IS_ERR(switch_dp_class))
-			return PTR_ERR(switch_dp_class);
-		atomic_set(&device_count, 0);
-	}
-	return 0;
-}
 
 static inline struct mtk_dp *dp_from_conn(struct drm_connector *c)
 {
@@ -155,77 +53,6 @@ static inline struct mtk_dp *dp_from_conn(struct drm_connector *c)
 static inline struct mtk_dp *dp_from_bridge(struct drm_bridge *b)
 {
 	return container_of(b, struct mtk_dp, bridge);
-}
-
-static int dptx_uevent_dev_register(struct notify_dev *sdev)
-{
-	int ret;
-
-	if (!switch_dp_class) {
-		ret = create_switch_class();
-
-		if (ret == 0)
-			DPTXMSG("create_switch_class susesess\n");
-		else {
-			DPTXERR("create_switch_class fail\n");
-			return ret;
-		}
-	}
-
-	sdev->index = atomic_inc_return(&device_count);
-	sdev->dev = device_create(switch_dp_class, NULL,
-			MKDEV(0, sdev->index), NULL, sdev->name);
-
-	if (sdev->dev) {
-		DPTXMSG("device create ok,index:0x%x\n", sdev->index);
-		ret = 0;
-	} else {
-		DPTXERR("device create fail,index:0x%x\n", sdev->index);
-		ret = -1;
-	}
-
-	ret = device_create_file(sdev->dev, &dev_attr_state);
-	if (ret < 0) {
-		device_destroy(switch_dp_class, MKDEV(0, sdev->index));
-		DPTXERR("switch: Failed to register driver %s\n",
-				sdev->name);
-	}
-
-	ret = device_create_file(sdev->dev, &dev_attr_name);
-	if (ret < 0) {
-		device_remove_file(sdev->dev, &dev_attr_state);
-		DPTXERR("switch: Failed to register driver %s\n",
-				sdev->name);
-	}
-
-	dev_set_drvdata(sdev->dev, sdev);
-	sdev->state = 0;
-
-	return ret;
-}
-
-static int notify_uevent_user(struct notify_dev *sdev, int state)
-{
-	char *envp[3];
-	char name_buf[120];
-	char state_buf[120];
-
-	if (sdev == NULL)
-		return -1;
-
-	if (sdev->state != state)
-		sdev->state = state;
-
-	snprintf(name_buf, sizeof(name_buf), "SWITCH_NAME=%s", sdev->name);
-	envp[0] = name_buf;
-	snprintf(state_buf, sizeof(state_buf), "SWITCH_STATE=%d", sdev->state);
-	envp[1] = state_buf;
-	envp[2] = NULL;
-	DPTXMSG("uevent name:%s ,state:%s\n", envp[0], envp[1]);
-
-	kobject_uevent_env(&sdev->dev->kobj, KOBJ_CHANGE, envp);
-
-	return 0;
 }
 
 static bool mdrv_DPTx_AuxWrite_Bytes(struct mtk_dp *mtk_dp, u8 ubCmd,
@@ -248,12 +75,12 @@ static bool mdrv_DPTx_AuxWrite_Bytes(struct mtk_dp *mtk_dp, u8 ubCmd,
 		ubRetryLimit--;
 		if (!bReplyStatus) {
 			udelay(50);
-			DPTXFUNC("Retry Num = %d\n", ubRetryLimit);
+			pr_info("Retry Num = %d\n", ubRetryLimit);
 		} else
 			return true;
 	} while (ubRetryLimit > 0);
 
-	DPTXERR("Aux Write Fail: cmd = %d, addr = 0x%x, len = %ld\n",
+	pr_err("Aux Write Fail: cmd = %d, addr = 0x%x, len = %ld\n",
 		ubCmd, usDPCDADDR, ubLength);
 
 	return false;
@@ -292,11 +119,11 @@ static bool mdrv_DPTx_AuxWrite_DPCD(struct mtk_dp *mtk_dp, u8 ubCmd,
 				pData);
 	}
 
-	if (1) {//mtk_dp_debug_get()) {
-		DPTXMSG("Aux write cmd = %d, addr = 0x%x, len = %ld, %s\n",
+	if (0) {//mtk_dp_debug_get()) {
+		pr_info("Aux write cmd = %d, addr = 0x%x, len = %ld, %s\n",
 			ubCmd, usDPCDADDR, ubLength, bRet ? "Success" : "Fail");
 		for (loop = 0; loop < ubLength; loop++)
-			DPTXMSG("DPCD%lx:0x%x", usDPCDADDR + loop, pData[loop]);
+			pr_info("DPCD%lx:0x%x", usDPCDADDR + loop, pData[loop]);
 	}
 
 	return bRet;
@@ -322,14 +149,14 @@ static bool mdrv_DPTx_AuxRead_Bytes(struct mtk_dp *mtk_dp, u8 ubCmd,
 					usDPCDADDR, ubLength, pData);
 		if (!bReplyStatus) {
 			udelay(50);
-			DPTXFUNC("Retry Num = %d\n", ubRetryLimit);
+			pr_info("Retry Num = %d\n", ubRetryLimit);
 		} else
 			return true;
 
 		ubRetryLimit--;
 	} while (ubRetryLimit > 0);
 
-	DPTXERR("Aux Read Fail: cmd = %d, addr = 0x%x, len = %ld\n",
+	pr_err("Aux Read Fail: cmd = %d, addr = 0x%x, len = %ld\n",
 		ubCmd, usDPCDADDR, ubLength);
 
 	return false;
@@ -367,11 +194,11 @@ static bool mdrv_DPTx_AuxRead_DPCD(struct mtk_dp *mtk_dp, u8 ubCmd,
 				ubLength,
 				pRxBuf);
 
-	if (1) {//mtk_dp_debug_get()) {
-		DPTXMSG("Aux Read cmd = %d, addr = 0x%x, len = %ld, %s\n",
+	if (0) {//mtk_dp_debug_get()) {
+		pr_info("Aux Read cmd = %d, addr = 0x%x, len = %ld, %s\n",
 			ubCmd, usDPCDADDR, ubLength, bRet ? "Success" : "Fail");
 		for (loop = 0; loop < ubLength; loop++)
-			DPTXMSG("DPCD%lx:0x%x", usDPCDADDR + loop, pRxBuf[loop]);
+			pr_info("DPCD%lx:0x%x", usDPCDADDR + loop, pRxBuf[loop]);
 	}
 
 	return bRet;
@@ -379,9 +206,9 @@ static bool mdrv_DPTx_AuxRead_DPCD(struct mtk_dp *mtk_dp, u8 ubCmd,
 
 static void mdrv_DPTx_InitVariable(struct mtk_dp *mtk_dp)
 {
-	DPTXFUNC();
+	pr_info("%s", __func__);
 	mtk_dp->training_info.ubDPSysVersion = DP_VERSION_14;
-	mtk_dp->training_info.ubLinkRate = DP_LINKRATE_HBR;
+	mtk_dp->training_info.ubLinkRate = DP_LINKRATE_HBR2;
 	mtk_dp->training_info.ubLinkLaneCount = DP_LANECOUNT_4;
 	mtk_dp->training_info.bSinkEXTCAP_En = false;
 	mtk_dp->training_info.bSinkSSC_En = false;
@@ -449,7 +276,7 @@ static void mdrv_DPTx_SetSDP_DownCntinit(struct mtk_dp *mtk_dp,
 		break;
 	}
 
-	DPTXMSG("PixRateKhz = %ld SDP_DC_Init = %x\n",
+	pr_info("PixRateKhz = %ld SDP_DC_Init = %x\n",
 		mtk_dp->info.DPTX_OUTBL.PixRateKhz, SDP_Down_Cnt_Init);
 
 	mhal_DPTx_SetSDP_DownCntinit(mtk_dp, SDP_Down_Cnt_Init);
@@ -477,7 +304,7 @@ static void mdrv_DPTx_SetSDP_DownCntinitInHblanking(struct mtk_dp *mtk_dp)
 		ucDCOffset = (mtk_dp->info.DPTX_OUTBL.Vtt <= 525) ? 0x08 : 0x00;
 		if (PixClkMhz > (mtk_dp->training_info.ubLinkRate * 27)) {
 			mhal_DPTx_SetSDP_DownCntinitInHblanking(mtk_dp, 0x0008);
-			DPTXMSG("Pixclk > LinkRateChange\n");
+			pr_info("Pixclk > LinkRateChange\n");
 		} else {
 			mhal_DPTx_SetSDP_DownCntinitInHblanking(mtk_dp,
 				0x0010 + ucDCOffset);
@@ -505,7 +332,7 @@ static void mdrv_DPTx_SetTU(struct mtk_dp *mtk_dp)
 	NValue = TU_size / 10;
 	FValue = TU_size-NValue * 10;
 
-	DPTXDBG("TU_size %d, FValue %d\n", TU_size, FValue);
+	pr_info("TU_size %d, FValue %d\n", TU_size, FValue);
 	if (mtk_dp->training_info.ubLinkLaneCount > 0) {
 		Sram_Read_Start = mtk_dp->info.DPTX_OUTBL.Hde /
 			(mtk_dp->training_info.ubLinkLaneCount*4*2*2);
@@ -602,12 +429,12 @@ static void mdrv_DPTx_SetDPTXOut(struct mtk_dp *mtk_dp)
 	case DPTX_SRC_PG:
 		mhal_DPTx_PGEnable(mtk_dp, true);
 		mhal_DPTx_Set_MVIDx2(mtk_dp, false);
-		DPTXMSG("Set Pattern Gen output\n");
+		pr_info("Set Pattern Gen output\n");
 		break;
 
 	case DPTX_SRC_DPINTF:
 		mhal_DPTx_PGEnable(mtk_dp, false);
-		DPTXMSG("Set dpintf output\n");
+		pr_info("Set dpintf output\n");
 		break;
 
 	default:
@@ -627,52 +454,52 @@ static bool mdrv_DPTx_CheckSinkLock(struct mtk_dp *mtk_dp, u8 *pDPCD20x, u8 *pDP
 		case DP_LANECOUNT_1:
 			if ((pDPCD200C[0] & 0x07) != 0x07) {
 				bLocked = false;
-				DPTXMSG("2L Lose LCOK\n");
+				pr_info("2L Lose LCOK\n");
 			}
 			break;
 		case DP_LANECOUNT_2:
 			if ((pDPCD200C[0] & 0x77) != 0x77) {
 				bLocked = false;
-				DPTXMSG("2L Lose LCOK\n");
+				pr_info("2L Lose LCOK\n");
 			}
 			break;
 		case DP_LANECOUNT_4:
 			if ((pDPCD200C[0] != 0x77) || (pDPCD200C[1] != 0x77)) {
 				bLocked = false;
-				DPTXMSG("4L Lose LCOK\n");
+				pr_info("4L Lose LCOK\n");
 			}
 			break;
 		}
 
 		if ((pDPCD200C[2]&BIT0) == 0) {
 			bLocked = false;
-			DPTXMSG("Interskew Lose LCOK\n");
+			pr_info("Interskew Lose LCOK\n");
 		}
 	} else {
 		switch (mtk_dp->training_info.ubLinkLaneCount) {
 		case DP_LANECOUNT_1:
 			if ((pDPCD20x[2] & 0x07) != 0x07) {
 				bLocked = false;
-				DPTXMSG("1L Lose LCOK\n");
+				pr_info("1L Lose LCOK\n");
 			}
 			break;
 		case DP_LANECOUNT_2:
 			if ((pDPCD20x[2] & 0x77) != 0x77) {
 				bLocked = false;
-				DPTXMSG("2L Lose LCOK\n");
+				pr_info("2L Lose LCOK\n");
 			}
 			break;
 		case DP_LANECOUNT_4:
 			if (((pDPCD20x[2] != 0x77) || (pDPCD20x[3] != 0x77))) {
 				bLocked = false;
-				DPTXMSG("4L Lose LCOK\n");
+				pr_info("4L Lose LCOK\n");
 			}
 			break;
 		}
 
 		if ((pDPCD20x[4]&BIT0) == 0) {
 			bLocked = false;
-			DPTXMSG("Interskew Lose LCOK\n");
+			pr_info("Interskew Lose LCOK\n");
 		}
 	}
 
@@ -693,16 +520,6 @@ static void mdrv_DPTx_CheckSinkESI(struct mtk_dp *mtk_dp, u8 *pDPCD20x, u8 *pDPC
 		ubTempValue = BIT0;
 		drm_dp_dpcd_write(&mtk_dp->aux, DPCD_00201, &ubTempValue, 0x1);
 	}
-
-#ifdef DPTX_HDCP_ENABLE
-	if (!(pDPCD20x[0x1]&BIT2) && !(pDPCD2002[0x1]&BIT2))
-		return;
-
-	if (mtk_dp->info.hdcp2_info.bEnable)
-		mdrv_DPTx_HDCP2_irq(mtk_dp);
-	else if (mtk_dp->info.hdcp1x_info.bEnable)
-		mdrv_DPTx_HDCP1X_irq(mtk_dp);
-#endif
 }
 
 static void mdrv_DPTx_CheckSinkHPDEvent(struct mtk_dp *mtk_dp)
@@ -718,19 +535,19 @@ static void mdrv_DPTx_CheckSinkHPDEvent(struct mtk_dp *mtk_dp)
 
 	ret = drm_dp_dpcd_read(&mtk_dp->aux, DPCD_02002, ubDPCD2002, 0x2);
 	if (!ret) {
-		DPTXMSG("Read DPCD_02002 Fail\n");
+		pr_info("Read DPCD_02002 Fail\n");
 		return;
 	}
 
 	ret = drm_dp_dpcd_read(&mtk_dp->aux, DPCD_0200C, ubDPCD200C, 0x4);
 	if (!ret) {
-		DPTXMSG("Read DPCD_0200C Fail\n");
+		pr_info("Read DPCD_0200C Fail\n");
 		return;
 	}
 
 	ret = drm_dp_dpcd_read(&mtk_dp->aux, DPCD_00200, ubDPCD20x, 0x6);
 	if (!ret) {
-		DPTXMSG("Read DPCD200 Fail\n");
+		pr_info("Read DPCD200 Fail\n");
 		return;
 	}
 
@@ -739,7 +556,7 @@ static void mdrv_DPTx_CheckSinkHPDEvent(struct mtk_dp *mtk_dp)
 
 	if ((ubDPCD2002[0x0] & 0x1F || ubDPCD20x[0x0] & 0x1F) &&
 		(ubDPCD200C[0x2] & BIT6 || ubDPCD20x[0x4] & BIT6)) {
-		DPTXMSG("New Branch Device Detection!!\n");
+		pr_info("New Branch Device Detection!!\n");
 
 		mtk_dp->training_info.ucCheckCapTimes = 0;
 		kfree(mtk_dp->edid);
@@ -778,59 +595,6 @@ void mdrv_DPTx_SPKG_SDP(struct mtk_dp *mtk_dp, bool bEnable, u8 ucSDPType,
 	mhal_DPTx_SPKG_SDP(mtk_dp, bEnable, ucSDPType, pHB, pDB);
 }
 
-void mdrv_DPTx_PatternSet(bool enable, int resolution)
-{
-	g_mtk_dp->info.bPatternGen = enable;
-	g_mtk_dp->info.resolution = resolution;
-}
-
-static void mdrv_DPTx_PatternGenTypeSel(struct mtk_dp *mtk_dp, int patternType,
-	BYTE BGR, DWORD ColorDepth, BYTE Location)
-{
-	WORD Hde, Vde;
-
-	Hde = mtk_dp->info.DPTX_OUTBL.Hde;
-	Vde = mtk_dp->info.DPTX_OUTBL.Vde;
-
-	switch (patternType) {
-	case DPTX_PG_PURE_COLOR:
-		mhal_DPTx_PG_Pure_Color(mtk_dp, BGR, ColorDepth);
-		break;
-
-	case DPTX_PG_VERTICAL_RAMPING:
-		mhal_DPTx_PG_VerticalRamping(mtk_dp, BGR, ColorDepth, Location);
-		break;
-
-	case DPTX_PG_HORIZONTAL_RAMPING:
-		mhal_DPTx_PG_HorizontalRamping(mtk_dp, BGR,
-			ColorDepth, Location);
-		break;
-
-	case DPTX_PG_VERTICAL_COLOR_BAR:
-		mhal_DPTx_PG_VerticalColorBar(mtk_dp, Location);
-		break;
-
-	case DPTX_PG_HORIZONTAL_COLOR_BAR:
-		mhal_DPTx_PG_HorizontalColorBar(mtk_dp, Location);
-		break;
-
-	case DPTX_PG_CHESSBOARD_PATTERN:
-		mhal_DPTx_PG_Chessboard(mtk_dp, Location, Hde, Vde);
-		break;
-
-	case DPTX_PG_SUB_PIXEL_PATTERN:
-		mhal_DPTx_PG_SubPixel(mtk_dp, Location);
-		break;
-
-	case DPTX_PG_FRAME_PATTERN:
-		mhal_DPTx_PG_Frame(mtk_dp, Location, Hde, Vde);
-		break;
-
-	default:
-		break;
-	}
-}
-
 static void mdrv_DPTx_StopSentSDP(struct mtk_dp *mtk_dp)
 {
 	u8 ubPkgType;
@@ -842,7 +606,7 @@ static void mdrv_DPTx_StopSentSDP(struct mtk_dp *mtk_dp)
 	mhal_DPTx_SPKG_VSC_EXT_VESA(mtk_dp, false, 0x00, NULL);
 	mhal_DPTx_SPKG_VSC_EXT_CEA(mtk_dp, false, 0x00, NULL);
 
-	DPTXFUNC();
+	pr_info("%s", __func__);
 }
 
 int mdrv_DPTx_HPD_HandleInThread(struct mtk_dp *mtk_dp)
@@ -855,27 +619,17 @@ int mdrv_DPTx_HPD_HandleInThread(struct mtk_dp *mtk_dp)
 		mtk_dp->training_info.bCableStateChange = false;
 
 		if (mtk_dp->training_info.bCablePlugIn && ubCurrentHPD) {
-			DPTXMSG("HPD_CON\n");
+			pr_info("HPD_CON\n");
 		} else {
-			DPTXMSG("HPD_DISCON\n");
+			pr_info("HPD_DISCON\n");
 			mdrv_DPTx_VideoMute(mtk_dp, true);
 			mdrv_DPTx_AudioMute(mtk_dp, true);
 
 			if (mtk_dp->bUeventToHwc) {
-				mtk_dp_hotplug_uevent(0);
 				mtk_dp->bUeventToHwc = false;
 				mtk_dp->disp_status = DPTX_DISP_NONE;
 			} else
-				DPTXMSG("Skip Uevent(0)\n");
-
-#ifdef DPTX_HDCP_ENABLE
-			if (mtk_dp->info.hdcp2_info.bEnable)
-				mdrv_DPTx_HDCP2_SetStartAuth(mtk_dp, false);
-			else if (mtk_dp->info.hdcp1x_info.bEnable)
-				mdrv_DPTx_HDCP1X_SetStartAuth(mtk_dp, false);
-
-			tee_removeDevice();
-#endif
+				pr_info("Skip Uevent(0)\n");
 
 			mdrv_DPTx_InitVariable(mtk_dp);
 			mhal_DPTx_PHY_SetIdlePattern(mtk_dp, true);
@@ -884,13 +638,9 @@ int mdrv_DPTx_HPD_HandleInThread(struct mtk_dp *mtk_dp)
 			mdrv_DPTx_StopSentSDP(mtk_dp);
 			mhal_DPTx_AnalogPowerOnOff(mtk_dp, false);
 
-			DPTXMSG("Power OFF %d", mtk_dp->bPowerOn);
+			pr_info("Power OFF %d", mtk_dp->bPowerOn);
 			if (mtk_dp->dp_tx_clk)
 				clk_disable_unprepare(mtk_dp->dp_tx_clk);
-
-			fakecablein = false;
-			fakeres = FAKE_DEFAULT_RES;
-			fakebpc = DP_COLOR_DEPTH_8BIT;
 
 			kfree(mtk_dp->edid);
 			mtk_dp->edid = NULL;
@@ -899,7 +649,7 @@ int mdrv_DPTx_HPD_HandleInThread(struct mtk_dp *mtk_dp)
 	}
 
 	if (mtk_dp->training_info.usPHY_STS & HPD_INT_EVNET) {
-		DPTXMSG("HPD_INT_EVNET\n");
+		pr_info("HPD_INT_EVNET\n");
 		mtk_dp->training_info.usPHY_STS &= ~HPD_INT_EVNET;
 		mdrv_DPTx_CheckSinkHPDEvent(mtk_dp);
 	}
@@ -1004,31 +754,31 @@ static void mdrv_DPTx_Print_TrainingState(u8 state)
 {
 	switch (state) {
 	case DPTX_NTSTATE_STARTUP:
-		DPTXMSG("NTSTATE_STARTUP!\n");
+		pr_info("NTSTATE_STARTUP!\n");
 		break;
 	case DPTX_NTSTATE_CHECKCAP:
-		DPTXMSG("NTSTATE_CHECKCAP!\n");
+		pr_info("NTSTATE_CHECKCAP!\n");
 		break;
 	case DPTX_NTSTATE_CHECKEDID:
-		DPTXMSG("NTSTATE_CHECKEDID!\n");
+		pr_info("NTSTATE_CHECKEDID!\n");
 		break;
 	case DPTX_NTSTATE_TRAINING_PRE:
-		DPTXMSG("NTSTATE_TRAINING_PRE!\n");
+		pr_info("NTSTATE_TRAINING_PRE!\n");
 		break;
 	case DPTX_NTSTATE_TRAINING:
-		DPTXMSG("NTSTATE_TRAINING!\n");
+		pr_info("NTSTATE_TRAINING!\n");
 		break;
 	case DPTX_NTSTATE_CHECKTIMING:
-		DPTXMSG("NTSTATE_CHECKTIMING!\n");
+		pr_info("NTSTATE_CHECKTIMING!\n");
 		break;
 	case DPTX_NTSTATE_NORMAL:
-		DPTXMSG("NTSTATE_NORMAL!\n");
+		pr_info("NTSTATE_NORMAL!\n");
 		break;
 	case DPTX_NTSTATE_POWERSAVE:
-		DPTXMSG("NTSTATE_POWERSAVE!\n");
+		pr_info("NTSTATE_POWERSAVE!\n");
 		break;
 	case DPTX_NTSTATE_DPIDLE:
-		DPTXMSG("NTSTATE_DPIDLE!\n");
+		pr_info("NTSTATE_DPIDLE!\n");
 		break;
 	}
 }
@@ -1094,7 +844,7 @@ static int mdrv_DPTx_TrainingFlow(struct mtk_dp *mtk_dp, u8 ubLaneRate, u8 ubLan
 		if (!mtk_dp->training_info.bCablePlugIn ||
 			((mtk_dp->training_info.usPHY_STS & HPD_DISCONNECT)
 				!= 0x0)) {
-			DPTXMSG("Training Abort! HPD is low\n");
+			pr_info("Training Abort! HPD is low\n");
 			return DPTX_PLUG_OUT;
 		}
 
@@ -1105,7 +855,7 @@ static int mdrv_DPTx_TrainingFlow(struct mtk_dp *mtk_dp, u8 ubLaneRate, u8 ubLan
 			return DPTX_TRANING_STATE_CHANGE;
 
 		if (!bPassTPS1)	{
-			DPTXMSG("CR Training START\n");
+			pr_info("CR Training START\n");
 			mhal_DPTx_SetScramble(mtk_dp, false);
 
 			if (ubStatusControl == 0x0)	{
@@ -1139,7 +889,7 @@ static int mdrv_DPTx_TrainingFlow(struct mtk_dp *mtk_dp, u8 ubLaneRate, u8 ubLan
 
 			if (drm_dp_clock_recovery_ok(ubTempValue,
 				ubTargetLaneCount)) {
-				DPTXMSG("CR Training Success\n");
+				pr_info("CR Training Success\n");
 				mtk_dp->training_info.cr_done = true;
 				bPassTPS1 = true;
 				ubTrainRetryTimes = 0x0;
@@ -1155,23 +905,23 @@ static int mdrv_DPTx_TrainingFlow(struct mtk_dp *mtk_dp, u8 ubLaneRate, u8 ubLan
 					ubDPCD206 = ubTempValue[0x4];
 				}
 
-				DPTXMSG("CR Training Fail\n");
+				pr_info("CR Training Fail\n");
 			}
 		} else if (bPassTPS1 && !bPassTPS2_3) {
-			DPTXMSG("EQ Training START\n");
+			pr_info("EQ Training START\n");
 			if (ubStatusControl == 0x1) {
 				if (mtk_dp->training_info.bTPS4) {
 					mhal_DPTx_SetTxTrainingPattern(mtk_dp,
 						BIT7);
-					DPTXMSG("LT TPS4\n");
+					pr_info("LT TPS4\n");
 				} else if (mtk_dp->training_info.bTPS3) {
 					mhal_DPTx_SetTxTrainingPattern(mtk_dp,
 						BIT6);
-					DPTXMSG("LT TP3\n");
+					pr_info("LT TP3\n");
 				} else {
 					mhal_DPTx_SetTxTrainingPattern(mtk_dp,
 						BIT5);
-					DPTXMSG("LT TPS2\n");
+					pr_info("LT TPS2\n");
 				}
 
 				if (mtk_dp->training_info.bTPS4) {
@@ -1223,10 +973,10 @@ static int mdrv_DPTx_TrainingFlow(struct mtk_dp *mtk_dp, u8 ubLaneRate, u8 ubLan
 				ubTargetLaneCount)) {
 				mtk_dp->training_info.eq_done = true;
 				bPassTPS2_3 = true;
-				DPTXMSG("EQ Training Success\n");
+				pr_info("EQ Training Success\n");
 				break;
 			}
-			DPTXMSG("EQ Training Fail\n");
+			pr_info("EQ Training Fail\n");
 
 			if (ubDPCD206 == ubTempValue[0x4])
 				ubIterationCount++;
@@ -1236,7 +986,7 @@ static int mdrv_DPTx_TrainingFlow(struct mtk_dp *mtk_dp, u8 ubLaneRate, u8 ubLan
 
 		mdrv_DPTx_TrainingCheckSwingPre(mtk_dp, ubTargetLaneCount,
 			ubTempValue, ubDPCP_Buffer1);
-		DPTXMSG("ubTrainRetryTimes = %d, ubIterationCount = %d\n",
+		pr_info("ubTrainRetryTimes = %d, ubIterationCount = %d\n",
 			ubTrainRetryTimes, ubIterationCount);
 
 	} while ((ubTrainRetryTimes < DPTX_TRAIN_RETRY_LIMIT) &&
@@ -1257,30 +1007,13 @@ static int mdrv_DPTx_TrainingFlow(struct mtk_dp *mtk_dp, u8 ubLaneRate, u8 ubLan
 		drm_dp_dpcd_write(&mtk_dp->aux, DPCD_00101, ubTempValue, 0x1);
 		mhal_DPTx_SetEF_Mode(mtk_dp, ENABLE_DPTX_EF_MODE);
 
-		DPTXMSG("Link Training PASS\n");
+		pr_info("Link Training PASS\n");
 		return DPTX_NOERR;
 	}
 
-	DPTXMSG("Link Training Fail\n");
+	pr_info("Link Training Fail\n");
 	return DPTX_TRANING_FAIL;
 }
-
-#ifdef DPTX_HDCP_ENABLE
-void mdrv_DPTx_CheckHDCPVersion(struct mtk_dp *mtk_dp)
-{
-	if (g_hdcp_on) {
-		if (mdrv_DPTx_HDCP2_Support(mtk_dp))
-			return;
-
-		if (mdrv_DPTx_HDCP1x_Support(mtk_dp))
-			return;
-	} else
-		DPTXMSG("Not enable HDCP Function!\n");
-
-	if (tee_addDevice(HDCP_NONE) != RET_SUCCESS)
-		mtk_dp->info.bAuthStatus = AUTH_FAIL;
-}
-#endif
 
 static bool mdrv_DPTx_CheckSinkCap(struct mtk_dp *mtk_dp)
 {
@@ -1306,20 +1039,13 @@ static bool mdrv_DPTx_CheckSinkCap(struct mtk_dp *mtk_dp)
 		drm_dp_dpcd_read(&mtk_dp->aux, DPCD_02200, bTempBuffer, 0x10);
 
 	mtk_dp->training_info.ubDPCD_REV = bTempBuffer[0x0];
-	DPTXMSG("SINK DPCD version:0x%x\n", mtk_dp->training_info.ubDPCD_REV);
+	pr_info("SINK DPCD version:0x%x\n", mtk_dp->training_info.ubDPCD_REV);
 
 	memcpy(mtk_dp->rx_cap, bTempBuffer, 0x10);
 	mtk_dp->rx_cap[0xe] &= 0x7F;
 
-	if (mtk_dp->training_info.ubDPCD_REV >= 0x14) {
+	if (mtk_dp->training_info.ubDPCD_REV >= 0x14)
 		mdrv_DPTx_FEC_Ready(mtk_dp, FEC_BIT_ERROR_COUNT);
-		mdrv_DPTx_DSC_Support(mtk_dp);
-	}
-
-	if (!mtk_dp->has_dsc || !mtk_dp->has_fec)
-		mtk_dp_enable_4k60(false);
-	else
-		mtk_dp_enable_4k60(true);
 
 #if !ENABLE_DPTX_FIX_LRLC
 	mtk_dp->training_info.ubLinkRate =
@@ -1343,20 +1069,16 @@ static bool mdrv_DPTx_CheckSinkCap(struct mtk_dp *mtk_dp)
 #if (ENABLE_DPTX_SSC_OUTPUT == 0x1)
 	if ((bTempBuffer[0x3] & BIT0) == 0x1) {
 		mtk_dp->training_info.bSinkSSC_En = true;
-		DPTXMSG("SINK SUPPORT SSC!\n");
+		pr_info("SINK SUPPORT SSC!\n");
 	} else {
 		mtk_dp->training_info.bSinkSSC_En = false;
-		DPTXMSG("SINK NOT SUPPORT SSC!\n");
+		pr_info("SINK NOT SUPPORT SSC!\n");
 	}
 #endif
 
 #if ENABLE_DPTX_SSC_FORCEON
-	DPTXMSG("FORCE SSC ON !!!\n");
+	pr_info("FORCE SSC ON !!!\n");
 	mtk_dp->training_info.bSinkSSC_En = true;
-#endif
-
-#ifdef DPTX_HDCP_ENABLE
-	mdrv_DPTx_CheckHDCPVersion(mtk_dp);
 #endif
 
 	drm_dp_dpcd_read(&mtk_dp->aux, DPCD_00021, bTempBuffer, 0x1);
@@ -1393,13 +1115,13 @@ static unsigned int mdrv_DPTx_getAudioCaps(struct mtk_dp *mtk_dp)
 	unsigned int caps = 0;
 
 	if (mtk_dp->edid == NULL) {
-		DPTXERR("EDID not found!\n");
+		pr_err("EDID not found!\n");
 		return 0;
 	}
 
 	sad_count = drm_edid_to_sad(mtk_dp->edid, &sads);
 	if (sad_count <= 0) {
-		DPTXMSG("The SADs is NULL\n");
+		pr_info("The SADs is NULL\n");
 		return 0;
 	}
 
@@ -1420,7 +1142,7 @@ static unsigned int mdrv_DPTx_getAudioCaps(struct mtk_dp *mtk_dp)
 		}
 	}
 
-	DPTXMSG("audio caps:0x%x", caps);
+	pr_info("audio caps:0x%x", caps);
 	return caps;
 }
 
@@ -1446,7 +1168,7 @@ int mdrv_DPTx_SetTrainingStart(struct mtk_dp *mtk_dp)
 #endif
 
 	if (!mhal_DPTx_GetHPDPinLevel(mtk_dp)) {
-		DPTXMSG("Start Training Abort!=> HPD low !\n");
+		pr_info("Start Training Abort!=> HPD low !\n");
 
 		ubTrainTimeLimits = 6;
 		while (ubTrainTimeLimits > 6) {
@@ -1469,7 +1191,7 @@ int mdrv_DPTx_SetTrainingStart(struct mtk_dp *mtk_dp)
 
 		ubLinkRate = mtk_dp->rx_cap[1];
 		ubLaneCount = mtk_dp->rx_cap[2] & 0x1F;
-		DPTXMSG("RX support ubLinkRate = 0x%x,ubLaneCount = %x",
+		pr_info("RX support ubLinkRate = 0x%x,ubLaneCount = %x",
 			ubLinkRate, ubLaneCount);
 
 #if !ENABLE_DPTX_FIX_LRLC
@@ -1487,7 +1209,7 @@ int mdrv_DPTx_SetTrainingStart(struct mtk_dp *mtk_dp)
 
 		if ((ubTemp[0x0] & 0xBF) != 0) {
 			mtk_dp->training_info.ubSinkCountNum = ubTemp[0x0]&0xBF;
-			DPTXMSG("ExtSink Count = %d\n",
+			pr_info("ExtSink Count = %d\n",
 				mtk_dp->training_info.ubSinkCountNum);
 		}
 	}
@@ -1512,7 +1234,7 @@ int mdrv_DPTx_SetTrainingStart(struct mtk_dp *mtk_dp)
 	ubTrainTimeLimits = 0x6;
 #endif
 	do {
-		DPTXMSG("LinkRate:0x%x, LaneCount:%x", ubLinkRate, ubLaneCount);
+		pr_info("LinkRate:0x%x, LaneCount:%x", ubLinkRate, ubLaneCount);
 
 		mtk_dp->training_info.cr_done = false;
 		mtk_dp->training_info.eq_done = false;
@@ -1601,23 +1323,23 @@ static int mdrv_DPTx_Training_Handler(struct mtk_dp *mtk_dp)
 
 			if (uaCheckTimes > DPTX_CheckSinkCap_TimeOutCnt) {
 				mtk_dp->training_info.ucCheckCapTimes = 0;
-				DPTXMSG("CheckCap Fail %d times",
+				pr_info("CheckCap Fail %d times",
 					DPTX_CheckSinkCap_TimeOutCnt);
 				mtk_dp->training_state = DPTX_NTSTATE_DPIDLE;
 				ret = DPTX_TIMEOUT;
 			} else
-				DPTXMSG("CheckCap Fail %d times", uaCheckTimes);
+				pr_info("CheckCap Fail %d times", uaCheckTimes);
 		}
 		break;
 
 	case DPTX_NTSTATE_CHECKEDID:
 		mtk_dp->edid = mtk_dp_handle_edid(mtk_dp);
 		if (mtk_dp->edid) {
-			DPTXMSG("READ EDID done!\n");
-			if (mtk_dp_debug_get()) {
+			pr_info("READ EDID done!\n");
+			if (1){//mtk_dp_debug_get()) {
 				u8 *raw_edid = (u8 *)mtk_dp->edid;
 
-				DPTXMSG("Raw EDID:\n");
+				pr_info("Raw EDID:\n");
 				print_hex_dump(KERN_NOTICE,
 						"\t", DUMP_PREFIX_NONE, 16, 1,
 						raw_edid, EDID_LENGTH, false);
@@ -1632,7 +1354,7 @@ static int mdrv_DPTx_Training_Handler(struct mtk_dp *mtk_dp)
 			mtk_dp->info.audio_caps
 				= mdrv_DPTx_getAudioCaps(mtk_dp);
 		} else
-			DPTXMSG("Read EDID Fail!\n");
+			pr_info("Read EDID Fail!\n");
 
 		mtk_dp->training_state = DPTX_NTSTATE_TRAINING_PRE;
 		break;
@@ -1671,70 +1393,6 @@ static int mdrv_DPTx_Training_Handler(struct mtk_dp *mtk_dp)
 	return ret;
 }
 
-
-#ifdef DPTX_HDCP_ENABLE
-int mdrv_DPTx_HDCP_Handle(struct mtk_dp *mtk_dp)
-{
-	int ret = DPTX_NOERR;
-
-	if (!mtk_dp->training_info.bCablePlugIn)
-		return DPTX_PLUG_OUT;
-
-	if (!mtk_dp->info.hdcp1x_info.bEnable
-		&& !mtk_dp->info.hdcp2_info.bEnable) {
-		if (mtk_dp->info.bAuthStatus == AUTH_FAIL) {
-			if (mtk_dp->video_enable)
-				mdrv_DPTx_VideoMute(mtk_dp, true);
-
-			ret = DPTX_AUTH_FAIL;
-			return ret;
-		} else
-			return ret;
-	}
-
-	if (mtk_dp->info.hdcp1x_info.bEnable)
-		mdrv_DPTx_HDCP1X_FSM(mtk_dp);
-	else if (mtk_dp->info.hdcp2_info.bEnable)
-		HDCPTx_Hdcp2FSM(mtk_dp);
-
-	switch (mtk_dp->info.bAuthStatus) {
-	case AUTH_INIT:
-		if (mtk_dp->video_enable)
-			mdrv_DPTx_VideoMute(mtk_dp, true);
-		break;
-	case AUTH_ENCRYPT:
-		if (mtk_dp->video_enable)
-			mdrv_DPTx_VideoMute(mtk_dp, false);
-		break;
-	case AUTH_FAIL:
-		ret = DPTX_AUTH_FAIL;
-		if (mtk_dp->video_enable)
-			mdrv_DPTx_VideoMute(mtk_dp, true);
-		break;
-	default:
-		break;
-	}
-
-	return ret;
-}
-
-static bool mdrv_DPTx_done(struct mtk_dp *mtk_dp)
-{
-	if (mtk_dp->state != DPTXSTATE_NORMAL)
-		return false;
-
-	if (mtk_dp->training_state != DPTX_NTSTATE_NORMAL)
-		return false;
-
-	if ((mtk_dp->info.hdcp1x_info.bEnable
-		|| mtk_dp->info.hdcp2_info.bEnable)
-		&& (mtk_dp->info.bAuthStatus != AUTH_PASS))
-		return false;
-
-	return true;
-}
-#endif
-
 static int mdrv_DPTx_Handle(struct mtk_dp *mtk_dp)
 {
 	int ret = DPTX_NOERR;
@@ -1743,7 +1401,7 @@ static int mdrv_DPTx_Handle(struct mtk_dp *mtk_dp)
 		return DPTX_PLUG_OUT;
 
 	if (mtk_dp->state != mtk_dp->state_pre) {
-		DPTXMSG("m_DPTXState %d, m_DPTXStateTemp %d\n",
+		pr_info("m_DPTXState %d, m_DPTXStateTemp %d\n",
 			mtk_dp->state, mtk_dp->state_pre);
 		mtk_dp->state_pre = mtk_dp->state;
 	}
@@ -1756,37 +1414,15 @@ static int mdrv_DPTx_Handle(struct mtk_dp *mtk_dp)
 		break;
 
 	case DPTXSTATE_IDLE:
-		if (mtk_dp->training_state == DPTX_NTSTATE_NORMAL) {
-#ifdef DPTX_HDCP_ENABLE
-		mtk_dp->state = DPTXSTATE_HDCP_AUTH;
-		if (mtk_dp->info.hdcp2_info.bEnable)
-			mdrv_DPTx_HDCP2_SetStartAuth(mtk_dp, true);
-		else if (mtk_dp->info.hdcp1x_info.bEnable)
-			mdrv_DPTx_HDCP1X_SetStartAuth(mtk_dp, true);
-		else
+		if (mtk_dp->training_state == DPTX_NTSTATE_NORMAL)
 			mtk_dp->state = DPTXSTATE_PREPARE;
-#else
-		mtk_dp->state = DPTXSTATE_PREPARE;
-#endif
-		}
 		break;
 
-#ifdef DPTX_HDCP_ENABLE
-	case DPTXSTATE_HDCP_AUTH:
-		if (mtk_dp->info.hdcp1x_info.bEnable
-			|| mtk_dp->info.hdcp2_info.bEnable) {
-			if (mtk_dp->info.bAuthStatus == AUTH_ENCRYPT)
-				mtk_dp->state = DPTXSTATE_PREPARE;
-		}  else
-			mtk_dp->state = DPTXSTATE_PREPARE;
-		break;
-#endif
 	case DPTXSTATE_PREPARE:
 		if (mtk_dp->bUeventToHwc) {
-			mtk_dp_hotplug_uevent(1);
 			mtk_dp->bUeventToHwc = false;
 		} else
-			DPTXMSG("Skip Uevent(1)\n");
+			pr_info("Skip Uevent(1)\n");
 
 		if (mtk_dp->info.bPatternGen) {
 			mtk_dp->video_enable = true;
@@ -1812,7 +1448,7 @@ static int mdrv_DPTx_Handle(struct mtk_dp *mtk_dp)
 			mdrv_DPTx_AudioMute(mtk_dp, true);
 			mdrv_DPTx_StopSentSDP(mtk_dp);
 			mtk_dp->state = DPTXSTATE_IDLE;
-			DPTXMSG("DPTX Link Status Change!\n");
+			pr_info("DPTX Link Status Change!\n");
 		}
 		break;
 
@@ -1854,7 +1490,7 @@ static void mdrv_DPTx_HPD_HandleInISR(struct mtk_dp *mtk_dp)
 		mtk_dp->training_info.bCablePlugIn = true;
 		mtk_dp->training_info.bCableStateChange = true;
 		mtk_dp->bUeventToHwc = true;
-		DPTXMSG(" HPD_CON_ISR\n");
+		pr_info(" HPD_CON_ISR\n");
 	}
 
 	if (mtk_dp->training_info.usPHY_STS & HPD_DISCONNECT) {
@@ -1862,7 +1498,7 @@ static void mdrv_DPTx_HPD_HandleInISR(struct mtk_dp *mtk_dp)
 		mtk_dp->training_info.bCablePlugIn = false;
 		mtk_dp->training_info.bCableStateChange = true;
 		mtk_dp->bUeventToHwc = true;
-		DPTXMSG("HPD_DISCON_ISR\n");
+		pr_info("HPD_DISCON_ISR\n");
 	}
 }
 
@@ -1878,8 +1514,8 @@ void mdrv_DPTx_HPD_ISREvent(struct mtk_dp *mtk_dp)
 
 	mtk_dp->irq_status = (ubHWStatus | ubSWStatus);
 	mtk_dp->training_info.usPHY_STS |= (ubHWStatus | ubSWStatus);
-	DPTXMSG("HW/SW status = 0x%x\n", (ubHWStatus | ubSWStatus));
-	DPTXMSG("ISR: Int Count = %d \r\n", DPTx_Int_Count);
+	pr_info("HW/SW status = 0x%x\n", (ubHWStatus | ubSWStatus));
+	pr_info("ISR: Int Count = %d \r\n", DPTx_Int_Count);
 
 	mdrv_DPTx_HPD_HandleInISR(mtk_dp);
 
@@ -1888,10 +1524,6 @@ void mdrv_DPTx_HPD_ISREvent(struct mtk_dp *mtk_dp)
 
 	if (ubHWStatus)
 		mhal_DPTx_HPDInterruptClr(mtk_dp, ubHWStatus);
-
-	if (mtk_dp->training_info.bCableStateChange
-		|| ubSWStatus == HPD_INT_EVNET)
-		wake_up(&mtk_dp->irq_wq);
 }
 
 static void mdrv_DPTx_ISR(struct mtk_dp *mtk_dp)
@@ -1916,7 +1548,7 @@ static void mdrv_DPTx_InitPort(struct mtk_dp *mtk_dp)
 
 void mdrv_DPTx_Video_Enable(struct mtk_dp *mtk_dp, bool bEnable)
 {
-	DPTXMSG("Output Video %s!\n", bEnable ? "enable" : "disable");
+	pr_info("Output Video %s!\n", bEnable ? "enable" : "disable");
 
 	if (bEnable) {
 		mdrv_DPTx_SetDPTXOut(mtk_dp);
@@ -1928,7 +1560,7 @@ void mdrv_DPTx_Video_Enable(struct mtk_dp *mtk_dp, bool bEnable)
 
 static void mdrv_DPTx_Set_Color_Format(struct mtk_dp *mtk_dp, u8 ucColorFormat)
 {
-	DPTXMSG("Set Color Format = 0x%x\n", ucColorFormat);
+	pr_info("Set Color Format = 0x%x\n", ucColorFormat);
 
 	mtk_dp->info.format = ucColorFormat;
 	mhal_DPTx_SetColorFormat(mtk_dp, ucColorFormat);
@@ -1936,7 +1568,7 @@ static void mdrv_DPTx_Set_Color_Format(struct mtk_dp *mtk_dp, u8 ucColorFormat)
 
 static void mdrv_DPTx_Set_Color_Depth(struct mtk_dp *mtk_dp, u8 ucColorDepth)
 {
-	DPTXMSG("Set Color Depth = %d (1~4=6/8/10/12bpp)\n", ucColorDepth + 1);
+	pr_info("Set Color Depth = %d (1~4=6/8/10/12bpp)\n", ucColorDepth + 1);
 
 	mtk_dp->info.depth = ucColorDepth;
 	mhal_DPTx_SetColorDepth(mtk_dp, ucColorDepth);
@@ -1946,10 +1578,10 @@ void mdrv_DPTx_I2S_Audio_Enable(struct mtk_dp *mtk_dp, bool bEnable)
 {
 	if (bEnable) {
 		mdrv_DPTx_AudioMute(mtk_dp, false);
-		DPTXMSG("I2S Audio Enable!\n");
+		pr_info("I2S Audio Enable!\n");
 	} else {
 		mdrv_DPTx_AudioMute(mtk_dp, true);
-		DPTXMSG("I2S Audio Disable!\n");
+		pr_info("I2S Audio Disable!\n");
 	}
 }
 
@@ -1957,7 +1589,7 @@ static void mdrv_DPTx_I2S_Audio_Set_MDiv(struct mtk_dp *mtk_dp, u8 ucDiv)
 {
 	char bTable[7][5] = {"X2", "X4", "X8", "N/A", "/2", "/4", "/8"};
 
-	DPTXMSG("I2S Set Audio M Divider = %s\n", bTable[ucDiv-1]);
+	pr_info("I2S Set Audio M Divider = %s\n", bTable[ucDiv-1]);
 	mhal_DPTx_Audio_M_Divider_Setting(mtk_dp, ucDiv);
 }
 
@@ -1967,22 +1599,16 @@ void mdrv_DPTx_I2S_Audio_Config(struct mtk_dp *mtk_dp)
 	unsigned int tmp = mtk_dp->info.audio_config;
 
 	if (!mtk_dp->dp_ready) {
-		DPTXERR("%s, DP is not ready!\n", __func__);
+		pr_err("%s, DP is not ready!\n", __func__);
 		return;
 	}
 
-	if (fakecablein) {
-		ucChannel = BIT(force_ch);
-		ucFs = BIT(force_fs);
-		ucWordlength = BIT(force_len);
-	} else {
-		ucChannel = (tmp >> DP_CAPABILITY_CHANNEL_SFT)
-			& DP_CAPABILITY_CHANNEL_MASK;
-		ucFs = (tmp >> DP_CAPABILITY_SAMPLERATE_SFT)
-			& DP_CAPABILITY_SAMPLERATE_MASK;
-		ucWordlength = (tmp >> DP_CAPABILITY_BITWIDTH_SFT)
-				& DP_CAPABILITY_BITWIDTH_MASK;
-	}
+	ucChannel = (tmp >> DP_CAPABILITY_CHANNEL_SFT)
+		& DP_CAPABILITY_CHANNEL_MASK;
+	ucFs = (tmp >> DP_CAPABILITY_SAMPLERATE_SFT)
+		& DP_CAPABILITY_SAMPLERATE_MASK;
+	ucWordlength = (tmp >> DP_CAPABILITY_BITWIDTH_SFT)
+			& DP_CAPABILITY_BITWIDTH_MASK;
 
 	switch (ucChannel) {
 	case DP_CHANNEL_2:
@@ -2061,7 +1687,7 @@ void mdrv_DPTx_I2S_Audio_SDP_Channel_Setting(struct mtk_dp *mtk_dp,
 		SDP_DB[0x3] = 0x00;
 
 	mhal_DPTx_Audio_SDP_Setting(mtk_dp, ucChannel);
-	DPTXMSG("I2S Set Audio Channel = %d\n", ucChannel);
+	pr_info("I2S Set Audio Channel = %d\n", ucChannel);
 	mdrv_DPTx_SPKG_SDP(mtk_dp, true, DPTx_SDPTYP_AUI, SDP_HB, SDP_DB);
 }
 
@@ -2071,74 +1697,12 @@ void mdrv_DPTx_I2S_Audio_Ch_Status_Set(struct mtk_dp *mtk_dp, u8 ucChannel,
 	mhal_DPTx_Audio_Ch_Status_Set(mtk_dp, ucChannel, ucFs, ucWordlength);
 }
 
-static void mdrv_DPTx_DSC_SetParam(struct mtk_dp *mtk_dp, u8 slice_num, u16 chunk_num)
-{
-	u8 r8, r16;
-	u8 q16[16] = {0x6, 0x01, 0x01, 0x03, 0x03, 0x05, 0x05, 0x07,
-		0x07, 0x00, 0x00, 0x02, 0x02, 0x04, 0x04, 0x06};
-	u8 q8[8] = {0x6, 0x01, 0x03, 0x05, 0x07, 0x00, 0x02, 0x04};
-	u8 hde_last_num, hde_num_even;
-
-	DPTXMSG("lane count = %d\n", mtk_dp->training_info.ubLinkLaneCount);
-	if (mtk_dp->training_info.ubLinkLaneCount == DP_LANECOUNT_2) {
-		if (chunk_num % 2)
-			//r16 = (int) ceil((chunk_num + 1 + 2) *
-				//slice_num / 3) % 16;
-			r16 = ((chunk_num + 1 + 2) * slice_num / 3) % 16;
-		else
-			//r16 = (int) ceil((chunk_num + 2) *
-				//slice_num / 3) % 16;
-			r16 = ((chunk_num + 2) * slice_num / 3) % 16;
-		DPTXMSG("r16 = %d\n", r16);
-		//r16 = 1; //test for 1080p
-		hde_last_num = (q16[r16] & (BIT1|BIT2)) >> 1;
-		hde_num_even = q16[r16] & BIT0;
-	} else {
-		//r8 = (int) ceil((chunk_num + 1) * slice_num / 3) % 8;
-		r8 = ((chunk_num + 1) * slice_num / 3) % 8;
-		DPTXMSG("r8 = %d\n", r8);
-		//r8 = 1; //test for 1080p
-		hde_last_num = (q8[r8] & (BIT1|BIT2)) >> 1;
-		hde_num_even = q8[r8] & BIT0;
-	}
-
-	mhal_DPTx_SetChunkSize(mtk_dp, slice_num-1, chunk_num, chunk_num%12,
-		mtk_dp->training_info.ubLinkLaneCount,
-		hde_last_num, hde_num_even);
-
-}
-
-static void mdrv_DPTx_DSC_SetPPS(struct mtk_dp *mtk_dp, u8 *PPS, bool enable)
-{
-	u8 HB[4] = {0x0, 0x10, 0x7F, 0x0};
-
-	mdrv_DPTx_SPKG_SDP(mtk_dp, enable, DPTx_SDPTYP_PPS0, HB, PPS +  0);
-	mdrv_DPTx_SPKG_SDP(mtk_dp, enable, DPTx_SDPTYP_PPS1, HB, PPS + 32);
-	mdrv_DPTx_SPKG_SDP(mtk_dp, enable, DPTx_SDPTYP_PPS2, HB, PPS + 64);
-	mdrv_DPTx_SPKG_SDP(mtk_dp, enable, DPTx_SDPTYP_PPS3, HB, PPS + 96);
-}
-
-void mdrv_DPTx_DSC_Support(struct mtk_dp *mtk_dp)
-{
-#if DPTX_SUPPORT_DSC
-	u8 Data[3];
-
-	drm_dp_dpcd_read(&mtk_dp->aux, 0x60, Data, 1);
-	if (Data[0] & BIT0)
-		mtk_dp->has_dsc = true;
-	else
-		mtk_dp->has_dsc = false;
-
-	DPTXMSG("Sink has_dsc = %d\n", mtk_dp->has_dsc);
-#endif
-}
-
 void mdrv_DPTx_FEC_Ready(struct mtk_dp *mtk_dp, u8 err_cnt_sel)
 {
 	u8 i, Data[3];
 
 	drm_dp_dpcd_read(&mtk_dp->aux, 0x90, Data, 0x1);
-	DPTXMSG("FEC Capable[0], [0:3] should be 1: 0x%x\n", Data[0]);
+	pr_info("FEC Capable[0], [0:3] should be 1: 0x%x\n", Data[0]);
 
 	/* FEC error count select 120[3:1]:         *
 	 * 000b: FEC_ERROR_COUNT_DIS                *
@@ -2154,75 +1718,9 @@ void mdrv_DPTx_FEC_Ready(struct mtk_dp *mtk_dp, u8 err_cnt_sel)
 		drm_dp_dpcd_write(&mtk_dp->aux, 0x120, Data, 0x1);
 		drm_dp_dpcd_read(&mtk_dp->aux, 0x280, Data, 0x3);
 		for (i = 0; i < 3; i++)
-			DPTXMSG("FEC status & error Count: 0x%x\n", Data[i]);
+			pr_info("FEC status & error Count: 0x%x\n", Data[i]);
 	}
 }
-
-DWORD getTimeDiff(DWORD dwPreTime)
-{
-	DWORD dwPostTime = getSystemTime();
-
-	if (dwPreTime > dwPostTime)
-		return ((1000000 - dwPreTime) + dwPostTime);
-	else
-		return (dwPostTime - dwPreTime);
-}
-
-DWORD getSystemTime(void)
-{
-	DWORD tms = (DWORD)((sched_clock() / 1000000) % 1000000);
-	return tms;
-}
-
-static int mtk_dp_kthread_init(void *data)
-{
-	struct mtk_dp *mtk_dp = data;
-	unsigned long long starttime = 0;
-
-	init_waitqueue_head(&mtk_dp->irq_wq);
-
-	while (!kthread_should_stop()) {
-		wait_event_interruptible(mtk_dp->irq_wq,
-			(mtk_dp->irq_status != 0));
-		mtk_dp->irq_status = 0;
-
-		starttime = sched_clock();
-
-		do {
-			if (abs(sched_clock() - starttime) > 30000000000ULL) {
-				DPTXMSG("Link training fail, over 30s\n");
-				break;
-			}
-
-			//if (mdrv_DPTx_Training_Handler(mtk_dp) != DPTX_NOERR)
-			//	break;
-
-			//if (mdrv_DPTx_Handle(mtk_dp) != DPTX_NOERR)
-			//	break;
-#ifdef DPTX_HDCP_ENABLE
-			if (mdrv_DPTx_HDCP_Handle(mtk_dp) != DPTX_NOERR)
-				break;
-#endif
-		} while (0);//!mdrv_DPTx_done(mtk_dp));
-	}
-
-	return 0;
-}
-
-u8 PPS_4k60[128] = {
-	0x12, 0x00, 0x00, 0x8d, 0x30, 0x80, 0x08, 0x70, 0x0f, 0x00, 0x00, 0x08,
-	0x07, 0x80, 0x07, 0x80,	0x02, 0x00, 0x04, 0xc0, 0x00, 0x20, 0x01, 0x1e,
-	0x00, 0x1a, 0x00, 0x0c, 0x0d, 0xb7, 0x03, 0x94,	0x18, 0x00, 0x10, 0xf0,
-	0x03, 0x0c, 0x20, 0x00, 0x06, 0x0b, 0x0b, 0x33, 0x0e, 0x1c, 0x2a, 0x38,
-	0x46, 0x54, 0x62, 0x69, 0x70, 0x77, 0x79, 0x7b, 0x7d, 0x7e, 0x01, 0x02,
-	0x01, 0x00, 0x09, 0x40,	0x09, 0xbe, 0x19, 0xfc, 0x19, 0xfa, 0x19, 0xf8,
-	0x1a, 0x38, 0x1a, 0x78, 0x22, 0xb6, 0x2a, 0xb6, 0x2a, 0xf6, 0x2a, 0xf4,
-	0x43, 0x34, 0x63, 0x74, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00,	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-};
-
 
 void mtk_dp_video_config(struct mtk_dp *mtk_dp)
 {
@@ -2234,12 +1732,12 @@ void mtk_dp_video_config(struct mtk_dp *mtk_dp)
 	drm_display_mode_to_videomode(&mtk_dp->mode, &vm);
 
 	if (!mtk_dp->dp_ready) {
-		DPTXERR("%s, DP is not ready!\n", __func__);
+		pr_err("%s, DP is not ready!\n", __func__);
 		return;
 	}
 
 	if (mtk_dp->info.resolution >= SINK_MAX) {
-		DPTXERR("DPTX doesn't support this resolution(%d)!\n",
+		pr_err("DPTX doesn't support this resolution(%d)!\n",
 			mtk_dp->info.resolution);
 		return;
 	}
@@ -2258,19 +1756,6 @@ void mtk_dp_video_config(struct mtk_dp *mtk_dp)
 	DPTX_TBL->Vfp = vm.vfront_porch;
 	DPTX_TBL->Vde = vm.vactive;
 
-	if (0) {//mtk_dp->info.resolution == SINK_3840_2160) {
-		// patch for 4k@60 with DSC 3 times compress
-		switch (mtk_dp->training_info.ubLinkRate) {
-		case DP_LINKRATE_HBR3:
-			mvid = 0x5DDE;
-			break;
-		case DP_LINKRATE_HBR2:
-			mvid = 0x8CCD;
-			break;
-		}
-		overwrite = true;
-	}
-
 	mhal_DPTx_OverWrite_MN(mtk_dp, overwrite, mvid, 0x8000);
 
 	if (mtk_dp->has_dsc) {
@@ -2284,254 +1769,10 @@ void mtk_dp_video_config(struct mtk_dp *mtk_dp)
 	DPTX_TBL->Video_ip_mode = DPTX_VIDEO_PROGRESSIVE;
 	mhal_DPTx_SetMSA(mtk_dp);
 
-	if (mtk_dp->info.bPatternGen) {
-		BYTE ucMISC[2] = {0x00};
-		mhal_DPTx_SetMISC(mtk_dp, ucMISC);
-		mdrv_DPTx_PatternGenTypeSel(mtk_dp,
-			DPTX_PG_HORIZONTAL_COLOR_BAR,
-			DPTX_PG_PURECOLOR_BLUE,
-			0xFFF,
-			DPTX_PG_LOCATION_ALL);
-	} else {
-		mdrv_DPTx_Set_MISC(mtk_dp);
-	}
+	mdrv_DPTx_Set_MISC(mtk_dp);
 
-	if (!mtk_dp->dsc_enable) {
-		mdrv_DPTx_Set_Color_Depth(mtk_dp, mtk_dp->info.depth);
-		mdrv_DPTx_Set_Color_Format(mtk_dp, mtk_dp->info.format);
-	} else {
-		mtk_dp_dsc_pps_send(PPS_4k60);
-		mhal_DPTx_EnableDSC(mtk_dp, true);
-	}
-}
-
-void mtk_dp_fec_enable(unsigned int status)
-{
-	if (status)
-		mhal_DPTx_EnableFEC(g_mtk_dp, true);
-	else
-		mhal_DPTx_EnableFEC(g_mtk_dp, false);
-}
-
-void mtk_dp_power_save(unsigned int status)
-{
-	u8 data;
-
-	g_mtk_dp->training_info.bCableStateChange = true;
-	if (status == 1) {
-		fakecablein = false;
-		data = 0x1;
-		drm_dp_dpcd_write(&g_mtk_dp->aux, DPCD_00600, &data, 1);
-		g_mtk_dp->training_info.bCablePlugIn = true;
-		mhal_DPTx_Fake_Plugin(g_mtk_dp, true);
-	} else if (status == 0) {
-		fakecablein = true;
-		data = 0x2;
-		drm_dp_dpcd_write(&g_mtk_dp->aux, DPCD_00600, &data, 1);
-		g_mtk_dp->training_info.bCablePlugIn = false;
-		mhal_DPTx_Fake_Plugin(g_mtk_dp, false);
-	}
-
-	g_mtk_dp->irq_status = 1;
-	wake_up_interruptible(&g_mtk_dp->irq_wq);
-}
-
-atomic_t dp_comm_event = ATOMIC_INIT(0);
-void mtk_dp_video_trigger(int res)
-{
-	DPTXFUNC("0x%x\n", res);
-
-	atomic_set(&dp_comm_event, res);
-	wake_up_interruptible(&g_mtk_dp->control_wq);
-}
-
-static int mtk_dp_control_kthread(void *data)
-{
-	struct mtk_dp *mtk_dp = data;
-	unsigned int videomute = 0;
-	unsigned int res = 0;
-
-	init_waitqueue_head(&mtk_dp->control_wq);
-
-	while (!kthread_should_stop()) {
-		wait_event_interruptible(mtk_dp->control_wq,
-			atomic_read(&dp_comm_event));
-
-		videomute = atomic_read(&dp_comm_event) >> 16;
-		res = atomic_read(&dp_comm_event) & 0xff;
-		atomic_set(&dp_comm_event, 0);
-
-		if (videomute & video_unmute) {
-			if (!fakecablein && mtk_dp->state > DPTXSTATE_PREPARE)
-				mtk_dp->state = DPTXSTATE_PREPARE;
-
-			mtk_dp->video_enable = true;
-			mtk_dp->info.resolution = res;
-			mtk_dp->irq_status = 1;
-			wake_up_interruptible(&mtk_dp->irq_wq);
-
-		} else if (videomute & video_mute) {
-			mtk_dp->video_enable = false;
-			if (!mtk_dp->dp_ready)
-				continue;
-
-			mdrv_DPTx_Video_Enable(mtk_dp, false);
-		}
-	}
-
-	return 0;
-}
-
-#define NOTIFY_OFFSET 0xF0
-atomic_t dp_notify_event = ATOMIC_INIT(0);
-static unsigned long long last_event_ts;
-static unsigned int last_event;
-
-static int mtk_dp_notify_kthread(void *data)
-{
-	struct mtk_dp *mtk_dp = data;
-	int event = 0;
-	unsigned long long ts_diff;
-
-	init_waitqueue_head(&mtk_dp->notify_wq);
-	while (!kthread_should_stop()) {
-		wait_event_interruptible(mtk_dp->notify_wq,
-			atomic_read(&dp_notify_event));
-		event = atomic_read(&dp_notify_event) - NOTIFY_OFFSET;
-		atomic_set(&dp_notify_event, 0);
-
-		DPTXMSG("fake:%d ;event: %d -> %d\n",
-			fakecablein, last_event, event);
-
-		if (last_event == event) {
-			DPTXMSG("Same event!");
-			mutex_unlock(&dp_lock);
-			continue;
-		}
-
-		ts_diff = abs(sched_clock() - last_event_ts);
-		if (ts_diff < 1000000000ULL) /* 1s */
-			msleep((1000000000ULL - ts_diff)/1000000);
-
-		last_event_ts = sched_clock();
-		last_event = event;
-
-		if (event > 0) {
-			notify_uevent_user(&dptx_notify_data,
-				DPTX_STATE_ACTIVE);
-		} else {
-			notify_uevent_user(&dptx_notify_data,
-				DPTX_STATE_NO_DEVICE);
-		}
-
-#ifdef DPTX_EXTCON_DEF
-		if (mtk_dp->info.audio_caps != 0)
-			extcon_set_state_sync(dptx_extcon, EXTCON_DISP_DP,
-				event > 0 ? true : false);
-#endif
-	}
-
-	return 0;
-}
-
-int mtk_drm_dp_audio_enable(struct drm_device *dev, void *data,
-		struct drm_file *file_priv)
-{
-	struct mtk_dp *mtk_dp = g_mtk_dp;
-
-	mtk_dp->audio_enable = *(bool *)data;
-	DPTXMSG("audio_enable = %d\n", mtk_dp->audio_enable);
-
-	if (!mtk_dp->dp_ready) {
-		DPTXERR("%s, DP is not ready!\n", __func__);
-		return 0;
-	}
-
-	mdrv_DPTx_I2S_Audio_Enable(mtk_dp, mtk_dp->audio_enable);
-
-	return 0;
-}
-
-int mtk_drm_dp_audio_config(struct drm_device *dev, void *data,
-		struct drm_file *file_priv)
-{
-	struct mtk_dp *mtk_dp = g_mtk_dp;
-
-	mtk_dp->info.audio_config = *(unsigned int *)data;
-	DPTXMSG("audio_config = 0x%x\n", mtk_dp->info.audio_config);
-
-	if (!mtk_dp->dp_ready) {
-		DPTXERR("%s, DP is not ready!\n", __func__);
-		return 0;
-	}
-
-	mdrv_DPTx_I2S_Audio_Config(mtk_dp);
-
-	return 0;
-}
-
-int mtk_drm_dp_get_cap(struct drm_device *dev, void *data,
-		struct drm_file *file_priv)
-{
-	unsigned int ch[7] = {2, 3, 4, 5, 6, 7, 8};
-	unsigned int fs[5] = {32, 44, 48, 96, 192};
-	unsigned int len[3] = {16, 20, 24};
-	unsigned int *dp_cap = data;
-
-	if (fakecablein) {
-		DPTXMSG("force audio format %dCH, %dkHz, %dbit\n",
-			ch[force_ch], fs[force_fs], len[force_len]);
-		*dp_cap = ((BIT(force_ch) << DP_CAPABILITY_CHANNEL_SFT)
-			| (BIT(force_fs) << DP_CAPABILITY_SAMPLERATE_SFT)
-			| (BIT(force_len) << DP_CAPABILITY_BITWIDTH_SFT));
-		return 0;
-	}
-
-	if (g_mtk_dp->dp_ready)
-		*dp_cap = g_mtk_dp->info.audio_caps;
-
-	if (*dp_cap == 0) //not support audio
-		*dp_cap = ((DP_CHANNEL_2 << DP_CAPABILITY_CHANNEL_SFT)
-			| (DP_SAMPLERATE_192 << DP_CAPABILITY_SAMPLERATE_SFT)
-			| (DP_BITWIDTH_24 << DP_CAPABILITY_BITWIDTH_SFT));
-
-	return 0;
-
-}
-
-void mtk_dp_get_dsc_capability(u8 *dsc_cap)
-{
-	if (!g_mtk_dp->dp_ready) {
-		DPTXMSG("%s, DP is not ready!\n", __func__);
-		return;
-	}
-
-	drm_dp_dpcd_read(&g_mtk_dp->aux, DPCD_00060, dsc_cap, 16);
-}
-
-void mtk_dp_dsc_pps_send(u8 *PPS_128)
-{
-	u8 dsc_cap[16];
-	u16 chunk_size = PPS_128[14] << 8 | PPS_128[15];
-	u16 pic_width = PPS_128[8] << 8 | PPS_128[9];
-	u16 slice_width = PPS_128[12] << 8 | PPS_128[13];
-
-	if (!g_mtk_dp->dp_ready) {
-		DPTXMSG("%s, DP is not ready!\n", __func__);
-		return;
-	}
-
-	mtk_dp_get_dsc_capability(dsc_cap);
-
-	PPS_128[0x0]
-		= ((dsc_cap[0x1] & 0xf) << 4) | ((dsc_cap[0x1] & 0xf0) >> 4);
-	if (dsc_cap[0x6] & BIT(0))
-		PPS_128[0x4] |=  (0x1 << 5);
-	else
-		PPS_128[0x4] &= ~(0x1 << 5);
-
-	mdrv_DPTx_DSC_SetPPS(g_mtk_dp, PPS_128, true);
-	mdrv_DPTx_DSC_SetParam(g_mtk_dp, pic_width/slice_width, chunk_size);
+	mdrv_DPTx_Set_Color_Depth(mtk_dp, mtk_dp->info.depth);
+	mdrv_DPTx_Set_Color_Format(mtk_dp, mtk_dp->info.format);
 }
 
 struct edid *mtk_dp_handle_edid(struct mtk_dp *mtk_dp)
@@ -2544,11 +1785,11 @@ struct edid *mtk_dp_handle_edid(struct mtk_dp *mtk_dp)
 		if (IS_ERR(mtk_dp->edid))
 			return NULL;
 
-		DPTXMSG("duplicate edid from mtk_dp->edid!\n");
+		pr_info("duplicate edid from mtk_dp->edid!\n");
 		return drm_edid_duplicate(mtk_dp->edid);
 	}
 
-	DPTXMSG("Get edid from RX!\n");
+	pr_info("Get edid from RX!\n");
 	return drm_get_edid(connector, &mtk_dp->aux.ddc);
 }
 
@@ -2581,7 +1822,7 @@ static int mtk_dp_dt_parse_pdata(struct mtk_dp *mtk_dp,
 		mtk_dp->dp_tx_clk = NULL;
 	}
 
-	DPTXMSG("reg and clock get success!\n");
+	pr_info("reg and clock get success!\n");
 //error:
 	return 0;
 }
@@ -2596,9 +1837,17 @@ static enum drm_connector_status mtk_dp_conn_detect(struct drm_connector *conn,
 {
 	struct mtk_dp *mtk_dp = mtk_dp_ctx_from_conn(conn);
 
-	DPTXFUNC("fakecablein %d\n", fakecablein);
-	if (fakecablein)
-		return connector_status_connected;
+	pr_info("%s", __func__);
+
+	return ((mhal_DPTx_GetHPDPinLevel(mtk_dp)) ? connector_status_connected :
+		connector_status_disconnected);
+}
+
+static enum drm_connector_status mtk_dp_bdg_detect(struct drm_bridge *bridge)
+{
+	struct mtk_dp *mtk_dp = dp_from_bridge(bridge);
+
+	pr_info("%s", __func__);
 
 	return ((mhal_DPTx_GetHPDPinLevel(mtk_dp)) ? connector_status_connected :
 		connector_status_disconnected);
@@ -2641,7 +1890,40 @@ static int mtk_dp_conn_get_modes(struct drm_connector *conn)
 		drm_connector_update_edid_property(&mtk_dp->conn,
 			mtk_dp->edid);
 		num_modes = drm_add_edid_modes(&mtk_dp->conn, mtk_dp->edid);
-		DPTXMSG("%s modes = %d\n", __func__, num_modes);
+		pr_info("%s modes = %d\n", __func__, num_modes);
+		return num_modes;
+	} else {
+		mtk_dp->edid = drm_get_edid(conn, &mtk_dp->aux.ddc);
+		if (!mtk_dp->edid) {
+			DRM_ERROR("Failed to read EDID\n");
+			goto error;
+		}
+
+		ret = drm_connector_update_edid_property(conn, mtk_dp->edid);
+		if (ret) {
+			DRM_ERROR("Failed to update EDID property: %d\n", ret);
+			goto error;
+		}
+
+		num_modes = drm_add_edid_modes(conn, mtk_dp->edid);
+		return num_modes;
+	}
+
+error:
+	return num_modes;
+}
+
+static int mtk_dp_bdg_get_modes(struct drm_bridge *bridge, struct drm_connector *conn)
+{
+	struct mtk_dp *mtk_dp = dp_from_bridge(bridge);
+	int ret;
+	int num_modes = 0;
+
+	if (mtk_dp->edid) {
+		drm_connector_update_edid_property(&mtk_dp->conn,
+			mtk_dp->edid);
+		num_modes = drm_add_edid_modes(&mtk_dp->conn, mtk_dp->edid);
+		pr_info("%s modes = %d\n", __func__, num_modes);
 		return num_modes;
 	} else {
 		mtk_dp->edid = drm_get_edid(conn, &mtk_dp->aux.ddc);
@@ -2671,19 +1953,29 @@ static const struct drm_connector_helper_funcs
 	.best_encoder = mtk_dp_conn_best_enc,
 };
 
-void mtk_dp_enable_4k60(int enable)
+static struct edid *mtk_get_edid(struct drm_bridge *bridge,
+			   struct drm_connector *connector)
 {
-#if DPTX_SUPPORT_DSC
-	if (enable > 0)
-		dp_plat_limit[0].valid = 1;
-	else
-		dp_plat_limit[0].valid = 0;
-#else
-	dp_plat_limit[0].valid = 1;
-#endif
+	struct mtk_dp *mtk_dp = dp_from_bridge(bridge);
+	bool poweroff = !mtk_dp->powered;
+	struct edid *edid;
 
-	DPTXFUNC("enable = %d\n", dp_plat_limit[0].valid);
+	drm_bridge_chain_pre_enable(bridge);
+
+	edid = drm_get_edid(connector, &mtk_dp->aux.ddc);
+
+	/*
+	 * If we call the get_edid() function without having enabled the chip
+	 * before, return the chip to its original power state.
+	 */
+	if (poweroff)
+		drm_bridge_chain_post_disable(bridge);
+
+	mtk_dp->edid = edid;
+
+	return edid;
 }
+
 
 static ssize_t mtk_dp_aux_transfer(struct drm_dp_aux *mtk_aux,
 	struct drm_dp_aux_msg *msg)
@@ -2720,7 +2012,7 @@ static ssize_t mtk_dp_aux_transfer(struct drm_dp_aux *mtk_aux,
 		break;
 
 	default:
-		DPTXERR("invalid aux cmd = %d\n", ubCmd);
+		pr_err("invalid aux cmd = %d\n", ubCmd);
 		ret = -EINVAL;
 		break;
 	}
@@ -2739,131 +2031,74 @@ static ssize_t mtk_dp_aux_transfer(struct drm_dp_aux *mtk_aux,
 static void mtk_dp_aux_init(struct mtk_dp *mtk_dp)
 {
 	drm_dp_aux_init(&mtk_dp->aux);
-	DPTXMSG("aux hw_mutex = 0x%p\n", &mtk_dp->aux.hw_mutex);
+	pr_info("aux hw_mutex = 0x%p\n", &mtk_dp->aux.hw_mutex);
 
 	mtk_dp->aux.name = kasprintf(GFP_KERNEL, "DPDDC-MTK");
 	mtk_dp->aux.transfer = mtk_dp_aux_transfer;
 }
 
-void mtk_dp_test(unsigned int status)
+static void mtk_dp_HPDInterruptSet(struct mtk_dp *mtk_dp, int bstatus)
 {
-	DPTXMSG("g_mtk_dp = 0x%p\n", g_mtk_dp);
-	mhal_DPTx_SWInterruptEnable(g_mtk_dp, true);
-	mhal_DPTx_SWInterruptSet(g_mtk_dp, status);
-}
+	pr_info("status:%d[2:DISCONNECT, 4:CONNECT, 8:IRQ] Power:%d\n",
+		bstatus, mtk_dp->bPowerOn);
 
-void mtk_dp_set_adjust_phy(uint8_t c0, uint8_t cp1)
-{
-	g_c0 = c0;
-	g_cp1 = cp1;
-}
-
-void mtk_dp_hotplug_uevent(unsigned int event)
-{
-	if (g_mtk_dp->info.bPatternGen)
-		return;
-
-	DPTXFUNC("fake:%d, event:%d\n", fakecablein, event);
-	atomic_set(&dp_notify_event, event + NOTIFY_OFFSET);
-	wake_up_interruptible(&g_mtk_dp->notify_wq);
-}
-
-void mtk_dp_force_audio(unsigned int ch, unsigned int fs, unsigned int len)
-{
-	if (ch != 0xff)
-		force_ch = ch;
-	if (fs != 0xff)
-		force_fs = fs;
-	if (len != 0xff)
-		force_len = len;
-
-	fakecablein = true;
-}
-
-static void mtk_dp_HPDInterruptSet(int bstatus)
-{
-	DPTXFUNC("status:%d[2:DISCONNECT, 4:CONNECT, 8:IRQ] Power:%d\n",
-		bstatus, g_mtk_dp->bPowerOn);
-
-	if ((bstatus == HPD_CONNECT && !g_mtk_dp->bPowerOn)
-		|| (bstatus == HPD_DISCONNECT && g_mtk_dp->bPowerOn)
-		|| (bstatus == HPD_INT_EVNET && g_mtk_dp->bPowerOn)) {
+	if ((bstatus == HPD_CONNECT && !mtk_dp->bPowerOn)
+		|| (bstatus == HPD_DISCONNECT && mtk_dp->bPowerOn)
+		|| (bstatus == HPD_INT_EVNET && mtk_dp->bPowerOn)) {
 
 		if (bstatus == HPD_CONNECT) {
 			int ret;
 
-			if (g_mtk_dp->dp_tx_clk) {
-				ret = clk_prepare_enable(g_mtk_dp->dp_tx_clk);
+			if (mtk_dp->dp_tx_clk) {
+				ret = clk_prepare_enable(mtk_dp->dp_tx_clk);
 				if (ret < 0)
-					DPTXERR("Fail to enable dptx clock: %d\n", ret);
+					pr_err("Fail to enable dptx clock: %d\n", ret);
 			}
-			mdrv_DPTx_InitPort(g_mtk_dp);
-			mhal_DPTx_AnalogPowerOnOff(g_mtk_dp, true);
-			/* mhal_DPTx_USBC_HPD(g_mtk_dp, true); */
-			g_mtk_dp->bPowerOn = true;
+			mdrv_DPTx_InitPort(mtk_dp);
+			mhal_DPTx_AnalogPowerOnOff(mtk_dp, true);
+			/* mhal_DPTx_USBC_HPD(mtk_dp, true); */
+			mtk_dp->bPowerOn = true;
 		} else if (bstatus == HPD_DISCONNECT) {
-			/* mhal_DPTx_USBC_HPD(g_mtk_dp, false); */
+			/* mhal_DPTx_USBC_HPD(mtk_dp, false); */
 		}
 
 		/*
-		 * mhal_DPTx_SWInterruptEnable(g_mtk_dp, true);
-		 * mhal_DPTx_SWInterruptSet(g_mtk_dp, bstatus);
+		 * mhal_DPTx_SWInterruptEnable(mtk_dp, true);
+		 * mhal_DPTx_SWInterruptSet(mtk_dp, bstatus);
 		 */
-		mhal_DPTx_HPDInterruptEnable(g_mtk_dp, true);
+		mhal_DPTx_HPDInterruptEnable(mtk_dp, true);
 		return;
 	}
 }
 
-void mtk_dp_SWInterruptSet(int bstatus)
+void mtk_dp_poweroff(struct mtk_dp *mtk_dp)
 {
-	mutex_lock(&dp_lock);
-
-	if ((bstatus == HPD_DISCONNECT && g_mtk_dp->bPowerOn)
-		|| (bstatus == HPD_CONNECT && !g_mtk_dp->bPowerOn))
-		g_mtk_dp->bUeventToHwc = true;
-
-	if (!g_mtk_dp->bPowerOn && bstatus == HPD_DISCONNECT
-		&& g_mtk_dp->disp_status == DPTX_DISP_SUSPEND) {
-		DPTXMSG("System is sleeping, Plug Out\n");
-		mtk_dp_hotplug_uevent(0);
-		g_mtk_dp->disp_status = DPTX_DISP_NONE;
-		mutex_unlock(&dp_lock);
+	pr_info("%s", __func__);
+	mutex_lock(&mtk_dp->dp_lock);
+	if (mtk_dp->disp_status == DPTX_DISP_NONE) {
+		pr_info("DPTX has been powered off\n");
+		mutex_unlock(&mtk_dp->dp_lock);
 		return;
 	}
 
-	mtk_dp_HPDInterruptSet(bstatus);
-
-	mutex_unlock(&dp_lock);
+	mtk_dp->disp_status = DPTX_DISP_SUSPEND;
+	mtk_dp_HPDInterruptSet(mtk_dp, HPD_DISCONNECT);
+	mutex_unlock(&mtk_dp->dp_lock);
 }
 
-void mtk_dp_poweroff(void)
+void mtk_dp_poweron(struct mtk_dp *mtk_dp)
 {
-	DPTXFUNC();
-	mutex_lock(&dp_lock);
-	if (g_mtk_dp->disp_status == DPTX_DISP_NONE) {
-		DPTXMSG("DPTX has been powered off\n");
-		mutex_unlock(&dp_lock);
+	pr_info("%s", __func__);
+	mutex_lock(&mtk_dp->dp_lock);
+	mtk_dp->disp_status = DPTX_DISP_RESUME;
+	if (mtk_dp->bPowerOn) {
+		pr_info("DPTX has been powered on\n");
+		mutex_unlock(&mtk_dp->dp_lock);
 		return;
 	}
 
-	g_mtk_dp->disp_status = DPTX_DISP_SUSPEND;
-	mtk_dp_HPDInterruptSet(HPD_DISCONNECT);
-	mutex_unlock(&dp_lock);
-}
-
-void mtk_dp_poweron(void)
-{
-	DPTXFUNC();
-	mutex_lock(&dp_lock);
-	g_mtk_dp->disp_status = DPTX_DISP_RESUME;
-	if (g_mtk_dp->bPowerOn) {
-		DPTXMSG("DPTX has been powered on\n");
-		mutex_unlock(&dp_lock);
-		return;
-	}
-
-	mtk_dp_HPDInterruptSet(HPD_CONNECT);
-	mutex_unlock(&dp_lock);
+	mtk_dp_HPDInterruptSet(mtk_dp, HPD_CONNECT);
+	mutex_unlock(&mtk_dp->dp_lock);
 }
 
 static int mtk_dp_bridge_attach(struct drm_bridge *bridge,
@@ -2872,19 +2107,32 @@ static int mtk_dp_bridge_attach(struct drm_bridge *bridge,
 	struct mtk_dp *mtk_dp = dp_from_bridge(bridge);
 	int ret;
 
+	pr_info("%s, %d, mtk_dp 0x%p, flag = %d\n", __func__, __LINE__, mtk_dp, flags);
+
+	mtk_dp_poweron(mtk_dp);
+
+	if (mtk_dp->next_bridge) {
+		ret = drm_bridge_attach(bridge->encoder, mtk_dp->next_bridge, &mtk_dp->bridge, flags);
+		if (ret) {
+			dev_err(mtk_dp->dev,
+				"Failed to attach external bridge: %d\n", ret);
+			return ret;
+		}
+	}
+
 	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
 		DRM_ERROR("Fix bridge driver to make connector optional!");
-		//return -EINVAL;
+		return 0;
 	}
 
 	mtk_dp->drm_dev = bridge->dev;
 
-	DPTXDBG("%s, %d, mtk_dp 0x%p\n", __func__, __LINE__, mtk_dp);
+	pr_info("%s, %d, mtk_dp 0x%p\n", __func__, __LINE__, mtk_dp);
 
 	ret = drm_connector_init(bridge->dev, &mtk_dp->conn, &mtk_dp_connector_funcs,
 				 DRM_MODE_CONNECTOR_DisplayPort);
 	if (ret) {
-		DPTXDBG("Failed to initialize connector: %d\n", ret);
+		pr_info("Failed to initialize connector: %d\n", ret);
 		return ret;
 	}
 	drm_connector_helper_add(&mtk_dp->conn, &mtk_dp_connector_helper_funcs);
@@ -2896,22 +2144,12 @@ static int mtk_dp_bridge_attach(struct drm_bridge *bridge,
 	ret = drm_connector_attach_encoder(&mtk_dp->conn,
 						bridge->encoder);
 	if (ret) {
-		DPTXDBG("Failed to attach connector to encoder: %d\n", ret);
+		pr_info("Failed to attach connector to encoder: %d\n", ret);
 		return ret;
 	}
 
-	if (mtk_dp->next_bridge) {
-		ret = drm_bridge_attach(bridge->encoder, mtk_dp->next_bridge, &mtk_dp->bridge, flags);
-		if (ret) {
-			dev_err(mtk_dp->dev,
-				"Failed to attach external bridge: %d\n", ret);
-			return ret;
-		}
-	}
 
-	mtk_dp_poweron();
-
-	DPTXDBG("end\n");
+	pr_info("end\n");
 
 	return 0;
 }
@@ -2920,7 +2158,7 @@ static bool mtk_dp_bridge_mode_fixup(struct drm_bridge *bridge,
 				       const struct drm_display_mode *mode,
 				       struct drm_display_mode *adjusted_mode)
 {
-	DPTXFUNC();
+	pr_info("%s", __func__);
 
 	return true;
 }
@@ -2929,7 +2167,7 @@ static void mtk_dp_bridge_disable(struct drm_bridge *bridge)
 {
 	struct mtk_dp *mtk_dp = dp_from_bridge(bridge);
 
-	DPTXFUNC();
+	pr_info("%s", __func__);
 
 	if (!mtk_dp->enabled)
 		return;
@@ -2941,14 +2179,14 @@ static void mtk_dp_bridge_post_disable(struct drm_bridge *bridge)
 {
 	struct mtk_dp *mtk_dp = dp_from_bridge(bridge);
 
-	DPTXDBG("start\n");
+	pr_info("start\n");
 
 	if (!mtk_dp->powered)
 		return;
 
 	mtk_dp->powered = false;
 
-	DPTXDBG("end\n");
+	pr_info("end\n");
 }
 
 static void mtk_dp_bridge_mode_set(struct drm_bridge *bridge,
@@ -2957,16 +2195,31 @@ static void mtk_dp_bridge_mode_set(struct drm_bridge *bridge,
 {
 	struct mtk_dp *mtk_dp = dp_from_bridge(bridge);
 
+	pr_info("%s", __func__);
+
 	drm_mode_copy(&mtk_dp->mode, adjusted_mode);
 }
 
 static void mtk_dp_bridge_pre_enable(struct drm_bridge *bridge)
 {
 	struct mtk_dp *mtk_dp = dp_from_bridge(bridge);
+
+	pr_info("%s", __func__);
+
+	mdrv_DPTx_CheckSinkCap(mtk_dp);
+
+	mtk_dp->powered = true;
+}
+
+static void mtk_dp_bridge_enable(struct drm_bridge *bridge)
+{
+	struct mtk_dp *mtk_dp = dp_from_bridge(bridge);
 	int ret = DPTX_NOERR;
 	int i;
 
-	DPTXFUNC();
+	pr_info("%s", __func__);
+
+	pr_info("%s +", __func__);
 
 	mdrv_DPTx_CheckSinkCap(mtk_dp);
 	mtk_dp->edid = mtk_dp_handle_edid(mtk_dp);
@@ -2984,16 +2237,6 @@ static void mtk_dp_bridge_pre_enable(struct drm_bridge *bridge)
 	if (ret != DPTX_NOERR)
 		pr_info("dptx handle fail!!!");
 
-	mtk_dp->powered = true;
-}
-
-static void mtk_dp_bridge_enable(struct drm_bridge *bridge)
-{
-	struct mtk_dp *mtk_dp = dp_from_bridge(bridge);
-
-	DPTXFUNC();
-
-	pr_info("%s +", __func__);
 
 	mtk_dp_video_config(mtk_dp);
 	mdrv_DPTx_Video_Enable(mtk_dp, true);
@@ -3016,6 +2259,9 @@ static const struct drm_bridge_funcs mtk_dp_bridge_funcs = {
 	.mode_set = mtk_dp_bridge_mode_set,
 	.pre_enable = mtk_dp_bridge_pre_enable,
 	.enable = mtk_dp_bridge_enable,
+	.get_edid = mtk_get_edid,
+	.detect = mtk_dp_bdg_detect,
+	.get_modes = mtk_dp_bdg_get_modes,
 };
 
 static int mtk_drm_dp_probe(struct platform_device *pdev)
@@ -3023,11 +2269,11 @@ static int mtk_drm_dp_probe(struct platform_device *pdev)
 	struct mtk_dp *mtk_dp;
 	struct device *dev = &pdev->dev;
 	int ret, irq_num = 0;
-	int comp_id = 0;
 	struct mtk_drm_private *mtk_priv = dev_get_drvdata(dev);
+	struct drm_panel *panel;
 
-	DPTXFUNC();
-	pr_info("DP_TX PROBE START!!!");
+	dev_err(&pdev->dev, "%s", __func__);
+	dev_err(&pdev->dev, "DP_TX PROBE START!!!");
 	mtk_dp = devm_kmalloc(dev, sizeof(*mtk_dp), GFP_KERNEL | __GFP_ZERO);
 	if (!mtk_dp)
 		return -ENOMEM;
@@ -3045,14 +2291,29 @@ static int mtk_drm_dp_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 	}
 
+	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0,
+					  &panel, &mtk_dp->next_bridge);
+	if (ret) {
+		dev_err(dev, "failed to drm_of_find_panel_or_bridge!ret=%d\n", ret);
+		return -EPROBE_DEFER;
+	}
+
+	if (panel) {
+		mtk_dp->next_bridge = devm_drm_panel_bridge_add(dev, panel);
+		if (IS_ERR(mtk_dp->next_bridge)) {
+			ret = PTR_ERR(mtk_dp->next_bridge);
+			dev_err(dev, "failed to devm_drm_panel_bridge_add!\n");
+			return -EPROBE_DEFER;
+		}
+	}
+
 	ret = mtk_dp_dt_parse_pdata(mtk_dp, pdev);
 	if (ret)
 		return ret;
 
 	mtk_dp_aux_init(mtk_dp);
 
-	DPTXMSG("comp_id %d, type %d, irq %d\n", comp_id,
-		MTK_DISP_DPTX, irq_num);
+	dev_err(&pdev->dev, "type %d, irq %d\n", MTK_DISP_DPTX, irq_num);
 
 	irq_set_status_flags(irq_num, IRQ_TYPE_LEVEL_HIGH);
 	ret = devm_request_irq(&pdev->dev, irq_num, mtk_dp_hpd_event,
@@ -3062,54 +2323,17 @@ static int mtk_drm_dp_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 	}
 
-	dptx_notify_data.name = "dptx";  // now hwc not support DP
-	dptx_notify_data.index = 0;
-	dptx_notify_data.state = DPTX_STATE_NO_DEVICE;
-	ret = dptx_uevent_dev_register(&dptx_notify_data);
-	if (ret)
-		DPTXERR("switch_dev_register failed, returned:%d!\n", ret);
-
-#ifdef DPTX_EXTCON_DEF
-	dptx_extcon = devm_extcon_dev_allocate(&pdev->dev, dptx_cable);
-	if (IS_ERR(dptx_extcon)) {
-		DPTXERR("Couldn't allocate dptx extcon device\n");
-		return PTR_ERR(dptx_extcon);
-	}
-
-	dptx_extcon->dev.init_name = "dp_audio";
-	ret = devm_extcon_dev_register(&pdev->dev, dptx_extcon);
-	if (ret) {
-		pr_debug("failed to register dptx extcon: %d\n", ret);
-		return ret;
-	}
-#endif
-	g_mtk_dp = mtk_dp;
-	mutex_init(&dp_lock);
+	mutex_init(&mtk_dp->dp_lock);
 
 	mtk_dp->bridge.funcs = &mtk_dp_bridge_funcs;
 	mtk_dp->bridge.of_node = pdev->dev.of_node;
+	mtk_dp->bridge.ops = DRM_BRIDGE_OP_DETECT | DRM_BRIDGE_OP_EDID
+			| DRM_BRIDGE_OP_HPD | DRM_BRIDGE_OP_MODES;
 	drm_bridge_add(&mtk_dp->bridge);
 
 	platform_set_drvdata(pdev, mtk_dp);
 
-	/* create dptx thread */
-	mtk_dp->task = kthread_run(mtk_dp_kthread_init,
-		(void *)mtk_dp, "mtk_dp_kthread");
-	if (IS_ERR(mtk_dp->task))
-		DPTXERR("=====create kthread failed!=====\n");
-
-	mtk_dp->control_task = kthread_run(mtk_dp_control_kthread,
-		(void *)mtk_dp, "mtk_dp_control_kthread");
-
-	mtk_dp->notify_task = kthread_run(mtk_dp_notify_kthread,
-		(void *)mtk_dp, "mtk_dp_notify_kthread");
-
-	/* power domain */
-	DPTXMSG("turn on power domain\n");
-	pm_runtime_enable(dev);
-	pm_runtime_get_sync(dev);
-
-	DPTXMSG("probe done\n");
+	dev_err(&pdev->dev, "probe done\n");
 
 	return 0;
 }
@@ -3126,7 +2350,7 @@ static int mtk_drm_dp_remove(struct platform_device *pdev)
 
 	if (!IS_ERR(mtk_dp->task)) {
 		ret = kthread_stop(mtk_dp->task);
-		DPTXMSG("=====thread function has stop %ds======\n", ret);
+		pr_info("=====thread function has stop %ds======\n", ret);
 	}
 
 	return 0;
@@ -3135,22 +2359,24 @@ static int mtk_drm_dp_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int mtk_dp_suspend(struct device *dev)
 {
-	DPTXFUNC();
+	struct mtk_dp *mtk_dp = dev_get_drvdata(dev);
 
-	mutex_lock(&dp_lock);
-	if (g_mtk_dp->bPowerOn) {
-		g_mtk_dp->disp_status = DPTX_DISP_SUSPEND;
-		mtk_dp_HPDInterruptSet(HPD_DISCONNECT);
+	pr_info("%s", __func__);
+
+	mutex_lock(&mtk_dp->dp_lock);
+	if (mtk_dp->bPowerOn) {
+		mtk_dp->disp_status = DPTX_DISP_SUSPEND;
+		mtk_dp_HPDInterruptSet(mtk_dp, HPD_DISCONNECT);
 		mdelay(5);
 	}
-	mutex_unlock(&dp_lock);
+	mutex_unlock(&mtk_dp->dp_lock);
 
 	return 0;
 }
 
 static int mtk_dp_resume(struct device *dev)
 {
-	DPTXFUNC();
+	pr_info("%s", __func__);
 	return 0;
 }
 #endif

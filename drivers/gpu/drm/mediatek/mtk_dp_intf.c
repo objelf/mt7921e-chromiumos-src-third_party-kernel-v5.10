@@ -522,8 +522,6 @@ static int mtk_dpintf_power_on(struct mtk_dpintf *dpintf)
 
 	pr_info("%s +", __func__);
 
-	dev_info(dpintf->dev, "[jitao test] %s %s %d \n", __FILE__, __func__, __LINE__);
-
 	drm_display_mode_to_videomode(&dpintf->mode, &vm);
 
 	if (++dpintf->refcount != 1) {
@@ -586,8 +584,6 @@ static int mtk_dpintf_set_display_mode(struct mtk_dpintf *dpintf,
 	struct mtk_dpintf_sync_param vsync_rodd = { 0 };
 	struct mtk_dpintf_sync_param vsync_reven = { 0 };
 	struct videomode vm = { 0 };
-
-	dev_info(dpintf->dev, "[jitao test] %s %s %d \n", __FILE__, __func__, __LINE__);
 
 	/* let pll_rate can fix the valid range of tvdpll (1G~2GHz) */
 	drm_display_mode_to_videomode(mode, &vm);
@@ -664,7 +660,7 @@ static int mtk_dpintf_bridge_attach(struct drm_bridge *bridge,
 	struct mtk_dpintf *dpintf = bridge_to_dpintf(bridge);
 
 	return drm_bridge_attach(bridge->encoder, dpintf->next_bridge,
-				 &dpintf->bridge, flags);
+				 &dpintf->bridge, DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 }
 
 static void mtk_dpintf_bridge_mode_set(struct drm_bridge *bridge,
@@ -688,8 +684,6 @@ static void mtk_dpintf_bridge_enable(struct drm_bridge *bridge)
 	struct mtk_dpintf *dpintf = bridge_to_dpintf(bridge);
 
 	pr_info("%s +", __func__);
-
-	dev_info(dpintf->dev, "[jitao test] %s %s %d \n", __FILE__, __func__, __LINE__);
 
 	mtk_dpintf_power_on(dpintf);
 	mtk_dpintf_set_display_mode(dpintf, &dpintf->mode);
@@ -727,8 +721,6 @@ static int mtk_dpintf_bind(struct device *dev, struct device *master, void *data
 	struct drm_device *drm_dev = data;
 	int ret;
 
-	dev_info(dev, "[jitao test] %s %s %d +\n", __FILE__, __func__, __LINE__);
-
 	ret = drm_simple_encoder_init(drm_dev, &dpintf->encoder,
 				      DRM_MODE_ENCODER_TMDS);
 	if (ret) {
@@ -738,13 +730,12 @@ static int mtk_dpintf_bind(struct device *dev, struct device *master, void *data
 
 	dpintf->encoder.possible_crtcs = mtk_drm_find_possible_crtc_by_comp(drm_dev, dpintf->dev);
 
-	ret = drm_bridge_attach(&dpintf->encoder, &dpintf->bridge, NULL, 0);
+	ret = drm_bridge_attach(&dpintf->encoder, &dpintf->bridge, NULL, DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 	if (ret) {
 		dev_err(dev, "Failed to attach bridge: %d\n", ret);
 		goto err_cleanup;
 	}
 
-/*
 	dpintf->connector = drm_bridge_connector_init(drm_dev, &dpintf->encoder);
 	if (IS_ERR(dpintf->connector)) {
 		dev_err(dev, "Unable to create bridge connector\n");
@@ -752,13 +743,11 @@ static int mtk_dpintf_bind(struct device *dev, struct device *master, void *data
 		goto err_cleanup;
 	}
 	drm_connector_attach_encoder(dpintf->connector, &dpintf->encoder);
-*/
+
 	dpintf->bit_num = MTK_DPINTF_OUT_BIT_NUM_8BITS;
 	dpintf->channel_swap = MTK_DPINTF_OUT_CHANNEL_SWAP_RGB;
 	dpintf->yc_map = MTK_DPINTF_OUT_YC_MAP_RGB;
 	dpintf->color_format = MTK_DPINTF_COLOR_FORMAT_RGB;
-
-	dev_info(dev, "[jitao test] %s %s %d -\n", __FILE__, __func__, __LINE__);
 
 	return 0;
 
@@ -786,8 +775,6 @@ static int mtk_dpintf_probe(struct platform_device *pdev)
 	struct mtk_dpintf *dpintf;
 	struct resource *mem;
 	int ret;
-
-	dev_info(dev, "[jitao test] %s %s %d probe +\n", __FILE__, __func__, __LINE__);
 
 	dpintf = devm_kzalloc(dev, sizeof(*dpintf), GFP_KERNEL);
 	if (!dpintf)
@@ -835,10 +822,8 @@ static int mtk_dpintf_probe(struct platform_device *pdev)
 
 	ret = drm_of_find_panel_or_bridge(dev->of_node, 0, 0,
 					  NULL, &dpintf->next_bridge);
-	if (ret) {
-		dev_info(dev, "[jitao test] %s %s %d probe can't get panel or bridge\n", __FILE__, __func__, __LINE__);
+	if (ret)
 		return ret;
-	}
 
 	dev_info(dev, "Found bridge node: %pOF\n", dpintf->next_bridge->of_node);
 
@@ -856,8 +841,6 @@ static int mtk_dpintf_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to add component: %d\n", ret);
 		return ret;
 	}
-
-	dev_info(dev, "[jitao test] %s %s %d probe -\n", __FILE__, __func__, __LINE__);
 
 	return 0;
 }

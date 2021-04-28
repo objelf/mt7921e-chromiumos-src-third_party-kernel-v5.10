@@ -751,9 +751,10 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 	drm_panel_init(&panel->base, dev, &panel_simple_funcs, connector_type);
 
 	err = drm_panel_of_backlight(&panel->base);
-	if (err)
+	if (err) {
+		err = -EPROBE_DEFER;
 		goto free_ddc;
-
+	}
 	drm_panel_add(&panel->base);
 
 	dev_set_drvdata(dev, panel);

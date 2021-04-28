@@ -33,8 +33,7 @@ obj-$(CONFIG_DRM_MEDIATEK_HDMI) += mediatek-drm-hdmi.o
 ifeq ($(CONFIG_MTK_DPTX_SUPPORT), y)
 obj-y += mtk_dp_intf.o \
 		 mtk_dp.o \
-		 mtk_dp_hal.o \
-		 mtk_dp_debug.o
+		 mtk_dp_hal.o
 endif
 
 endif

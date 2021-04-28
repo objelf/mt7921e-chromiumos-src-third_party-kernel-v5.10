@@ -237,8 +237,8 @@ enum DPTX_VIDEO_MODE {
 #define DP_CAPABILITY_BITWIDTH_SFT              16
 
 
-void mtk_dp_poweroff(void);
-void mtk_dp_poweron(void);
+void mtk_dp_poweroff(struct mtk_dp *mtk_dp);
+void mtk_dp_poweron(struct mtk_dp *mtk_dp);
 void mtk_dp_video_trigger(int res);
 struct edid *mtk_dp_handle_edid(struct mtk_dp *mtk_dp);
 int mdrv_DPTx_SetTrainingStart(struct mtk_dp *mtk_dp);
