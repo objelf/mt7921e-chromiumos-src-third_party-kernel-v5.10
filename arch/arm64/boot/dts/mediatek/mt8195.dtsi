@@ -319,7 +319,7 @@
 			      <0 0x11eb0000 0 0x1000>,
 			      <0 0x11f40000 0 0x1000>,
 			      <0 0x1000b000 0 0x1000>;
-			reg-names = "iocfg0", "iocfg_bl", "iocfg_bm",
+			reg-names = "iocfg0", "iocfg_bm", "iocfg_bl",
 				    "iocfg_br", "iocfg_lm", "iocfg_rb",
 				    "iocfg_tl", "eint";
 			gpio-controller;
