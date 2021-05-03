@@ -459,9 +459,8 @@ static const struct mtk_ddp_comp_match mtk_ddp_matches[DDP_COMPONENT_ID_MAX] = {
 	[DDP_COMPONENT_WDMA0]	= { MTK_DISP_WDMA,	0, NULL },
 	[DDP_COMPONENT_WDMA1]	= { MTK_DISP_WDMA,	1, NULL },
 #ifdef CONFIG_MTK_DPTX_SUPPORT
-	[DDP_COMPONENT_DP_INTF0]		= {MTK_DP_INTF,	0, &ddp_dp_intf },
-	[DDP_COMPONENT_DP_INTF1]   	= { MTK_DP_INTF,	1, NULL },
-	[DDP_COMPONENT_DPTX]		= {MTK_DISP_DPTX,	0, NULL },
+	[DDP_COMPONENT_DP_INTF0] = { MTK_DP_INTF, 0, &ddp_dp_intf },
+	[DDP_COMPONENT_DP_INTF1] = { MTK_DP_INTF, 1, &ddp_dp_intf },
 #endif
 	[DDP_COMPONENT_PSEUDO_OVL] = { MTK_DISP_PSEUDO_OVL,	0, &ddp_pseudo_ovl },
 	[DDP_COMPONENT_ETHDR] = { MTK_DISP_ETHDR, 0, &ddp_ethdr},

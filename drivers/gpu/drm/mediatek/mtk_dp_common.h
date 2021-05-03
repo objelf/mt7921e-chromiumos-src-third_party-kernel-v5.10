@@ -49,6 +49,7 @@
 enum DP_ATF_CMD {
 	DP_ATF_DUMP = 0x20,
 	DP_ATF_VIDEO_UNMUTE,
+	DP_ATF_EDP_VIDEO_UNMUTE,
 	DP_ATF_REG_WRITE,
 	DP_ATF_REG_READ,
 	DP_ATF_CMD_COUNT
@@ -142,6 +143,10 @@ struct DPTX_INFO {
 
 };
 
+struct mtk_dp_driver_data {
+	bool is_edp;
+};
+
 struct mtk_dp {
 	struct device *dev;
 	struct mtk_ddp_comp ddp_comp;
@@ -191,7 +196,7 @@ struct mtk_dp {
 	bool powered;
 	struct mtk_drm_private *priv;
 	struct mutex dp_lock;
+	const struct mtk_dp_driver_data *driver_data;
 };
-
 #endif /*__DRTX_TYPE_H__*/
 

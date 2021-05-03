@@ -2291,22 +2291,25 @@ static int mtk_drm_dp_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 	}
 
-	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0,
-					  &panel, &mtk_dp->next_bridge);
-	if (ret) {
-		dev_err(dev, "failed to drm_of_find_panel_or_bridge!ret=%d\n", ret);
-		return -EPROBE_DEFER;
-	}
+	mtk_dp->driver_data = of_device_get_match_data(dev);
 
-	if (panel) {
-		mtk_dp->next_bridge = devm_drm_panel_bridge_add(dev, panel);
-		if (IS_ERR(mtk_dp->next_bridge)) {
-			ret = PTR_ERR(mtk_dp->next_bridge);
-			dev_err(dev, "failed to devm_drm_panel_bridge_add!\n");
+	if (mtk_dp->driver_data && mtk_dp->driver_data->is_edp) {
+		ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0,
+						  &panel, &mtk_dp->next_bridge);
+		if (ret) {
+			dev_err(dev, "failed to drm_of_find_panel_or_bridge!ret=%d\n", ret);
 			return -EPROBE_DEFER;
 		}
-	}
 
+		if (panel) {
+			mtk_dp->next_bridge = devm_drm_panel_bridge_add(dev, panel);
+			if (IS_ERR(mtk_dp->next_bridge)) {
+				ret = PTR_ERR(mtk_dp->next_bridge);
+				dev_err(dev, "failed to devm_drm_panel_bridge_add!\n");
+				return -EPROBE_DEFER;
+			}
+		}
+	}
 	ret = mtk_dp_dt_parse_pdata(mtk_dp, pdev);
 	if (ret)
 		return ret;
@@ -2327,6 +2330,11 @@ static int mtk_drm_dp_probe(struct platform_device *pdev)
 
 	mtk_dp->bridge.funcs = &mtk_dp_bridge_funcs;
 	mtk_dp->bridge.of_node = pdev->dev.of_node;
+	if (mtk_dp->driver_data && mtk_dp->driver_data->is_edp)
+		mtk_dp->bridge.type = DRM_MODE_CONNECTOR_eDP;
+	else
+		mtk_dp->bridge.type = DRM_MODE_CONNECTOR_DisplayPort;
+
 	mtk_dp->bridge.ops = DRM_BRIDGE_OP_DETECT | DRM_BRIDGE_OP_EDID
 			| DRM_BRIDGE_OP_HPD | DRM_BRIDGE_OP_MODES;
 	drm_bridge_add(&mtk_dp->bridge);
@@ -2384,9 +2392,14 @@ static int mtk_dp_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(mtk_dp_pm_ops,
 		mtk_dp_suspend, mtk_dp_resume);
 
+static const struct mtk_dp_driver_data mt8195_edp_driver_data = {
+	.is_edp = true,
+};
 
 static const struct of_device_id mtk_dp_of_match[] = {
 	{ .compatible = "mediatek,mt8195-dp_tx", },
+	{ .compatible = "mediatek,mt8195-edp_tx",
+	  .data = &mt8195_edp_driver_data },
 	{ },
 };
 
