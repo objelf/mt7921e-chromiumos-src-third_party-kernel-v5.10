@@ -2365,8 +2365,7 @@
 
 	bring-up {
 		compatible = "mediatek,clk-bring-up";
-		clocks = <&mfgcfg CLK_MFG_BG3D>,
-			 <&infracfg_ao CLK_INFRA_AO_DEBUGSYS>,
+		clocks = <&infracfg_ao CLK_INFRA_AO_DEBUGSYS>,
 			 <&infracfg_ao CLK_INFRA_AO_UART0>;
 	};
 };
