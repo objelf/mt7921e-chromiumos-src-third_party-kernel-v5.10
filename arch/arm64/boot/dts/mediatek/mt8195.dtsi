@@ -969,6 +969,28 @@
 			status = "disabled";
 		};
 
+		xhci: xhci@11200000 {
+			compatible = "mediatek,mt8195-xhci",
+				     "mediatek,mtk-xhci";
+			reg = <0 0x11200000 0 0x1000>,
+			      <0 0x11203e00 0 0x0100>;
+			reg-names = "mac", "ippc";
+			interrupts = <GIC_SPI 129 IRQ_TYPE_LEVEL_HIGH 0>;
+			phys = <&u2port0 PHY_TYPE_USB2>,
+			       <&u3port0 PHY_TYPE_USB3>;
+			assigned-clocks = <&topckgen CLK_TOP_USB_SEL>,
+					  <&topckgen CLK_TOP_SSUSB_XHCI_SEL>;
+			assigned-clock-parents = <&topckgen CLK_TOP_UNIVPLL_D5_D4>,
+						 <&topckgen CLK_TOP_UNIVPLL_D5_D4>;
+			clocks = <&infracfg_ao CLK_INFRA_AO_SSUSB>,
+				 <&infracfg_ao CLK_INFRA_AO_SSUSB_XHCI>,
+				 <&topckgen CLK_TOP_SSUSB_REF>;
+			clock-names = "sys_ck", "xhci_ck", "ref_ck";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			status = "disabled";
+		};
+
 		mmc0: mmc@11230000 {
 			compatible = "mediatek,mt8195-mmc",
 				     "mediatek,mt8192-mmc",
@@ -994,6 +1016,69 @@
 				 <&infracfg_ao CLK_INFRA_AO_MSDC1>,
 				 <&infracfg_ao CLK_INFRA_AO_MSDC1_SRC>;
 			clock-names = "source", "hclk", "source_cg";
+			status = "disabled";
+		};
+
+		xhci1: xhci1@11290000 {
+			compatible = "mediatek,mt8195-xhci",
+				     "mediatek,mtk-xhci";
+			reg = <0 0x11290000 0 0x1000>,
+			      <0 0x11293e00 0 0x0100>;
+			reg-names = "mac", "ippc";
+			interrupts = <GIC_SPI 530 IRQ_TYPE_LEVEL_HIGH 0>;
+			phys = <&u2port1 PHY_TYPE_USB2>;
+			assigned-clocks = <&topckgen CLK_TOP_USB_1P_SEL>,
+					  <&topckgen CLK_TOP_SSUSB_XHCI_1P_SEL>;
+			assigned-clock-parents = <&topckgen CLK_TOP_UNIVPLL_D5_D4>,
+						 <&topckgen CLK_TOP_UNIVPLL_D5_D4>;
+			clocks = <&pericfg_ao CLK_PERI_AO_SSUSB_1P_BUS>,
+				 <&pericfg_ao CLK_PERI_AO_SSUSB_1P_XHCI>,
+				 <&topckgen CLK_TOP_SSUSB_P1_REF>;
+			clock-names = "sys_ck", "xhci_ck", "ref_ck";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			status = "disabled";
+		};
+
+		xhci2: xhci2@112a0000 {
+			compatible = "mediatek,mt8195-xhci",
+				     "mediatek,mtk-xhci";
+			reg = <0 0x112a0000 0 0x1000>,
+			      <0 0x112a3e00 0 0x0100>;
+			reg-names = "mac", "ippc";
+			interrupts = <GIC_SPI 533 IRQ_TYPE_LEVEL_HIGH 0>;
+			phys = <&u2port2 PHY_TYPE_USB2>;
+			assigned-clocks = <&topckgen CLK_TOP_USB_2P_SEL>,
+					  <&topckgen CLK_TOP_SSUSB_XHCI_2P_SEL>;
+			assigned-clock-parents = <&topckgen CLK_TOP_UNIVPLL_D5_D4>,
+						 <&topckgen CLK_TOP_UNIVPLL_D5_D4>;
+			clocks = <&pericfg_ao CLK_PERI_AO_SSUSB_2P_BUS>,
+				 <&pericfg_ao CLK_PERI_AO_SSUSB_2P_XHCI>,
+				 <&topckgen CLK_TOP_SSUSB_P2_REF>;
+			clock-names = "sys_ck", "xhci_ck", "ref_ck";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			status = "disabled";
+		};
+
+		xhci3: xhci3@112b0000 {
+			compatible = "mediatek,mt8195-xhci",
+				     "mediatek,mtk-xhci";
+			reg = <0 0x112b0000 0 0x1000>,
+			      <0 0x112b3e00 0 0x0100>;
+			reg-names = "mac", "ippc";
+			interrupts = <GIC_SPI 536 IRQ_TYPE_LEVEL_HIGH 0>;
+			phys = <&u2port3 PHY_TYPE_USB2>;
+			assigned-clocks = <&topckgen CLK_TOP_USB_3P_SEL>,
+					  <&topckgen CLK_TOP_SSUSB_XHCI_3P_SEL>;
+			assigned-clock-parents = <&topckgen CLK_TOP_UNIVPLL_D5_D4>,
+						 <&topckgen CLK_TOP_UNIVPLL_D5_D4>;
+			clocks = <&pericfg_ao CLK_PERI_AO_SSUSB_3P_BUS>,
+				 <&pericfg_ao CLK_PERI_AO_SSUSB_3P_XHCI>,
+				 <&topckgen CLK_TOP_SSUSB_P3_REF>;
+			clock-names = "sys_ck", "xhci_ck", "ref_ck";
+			#address-cells = <2>;
+			#size-cells = <2>;
 			status = "disabled";
 		};
 
@@ -1090,7 +1175,7 @@
 
 			u2port2: usb-phy@0 {
 				reg = <0x0 0x700>;
-				clocks = <&clk26m>;
+				clocks = <&topckgen CLK_TOP_SSUSB_PHY_P2_REF>;
 				clock-names = "ref";
 				#phy-cells = <1>;
 			};
@@ -1105,7 +1190,7 @@
 
 			u2port3: usb-phy@0 {
 				reg = <0x0 0x700>;
-				clocks = <&clk26m>;
+				clocks = <&topckgen CLK_TOP_SSUSB_PHY_P3_REF>;
 				clock-names = "ref";
 				#phy-cells = <1>;
 			};
@@ -1261,14 +1346,14 @@
 
 			u2port1: usb-phy@0 {
 				reg = <0x0 0x700>;
-				clocks = <&clk26m>;
+				clocks = <&topckgen CLK_TOP_SSUSB_PHY_P1_REF>;
 				clock-names = "ref";
 				#phy-cells = <1>;
 			};
 
 			u3port1: usb-phy@700 {
 				reg = <0x700 0x700>;
-				clocks = <&clk26m>;
+				clocks = <&apmixedsys CLK_APMIXED_PLL_SSUSB26M>;
 				clock-names = "ref";
 				#phy-cells = <1>;
 			};
@@ -1283,14 +1368,14 @@
 
 			u2port0: usb-phy@0 {
 				reg = <0x0 0x700>;
-				clocks = <&clk26m>;
+				clocks = <&topckgen CLK_TOP_SSUSB_PHY_REF>;
 				clock-names = "ref";
 				#phy-cells = <1>;
 			};
 
 			u3port0: usb-phy@700 {
 				reg = <0x700 0x700>;
-				clocks = <&clk26m>;
+				clocks = <&apmixedsys CLK_APMIXED_PLL_SSUSB26M>;
 				clock-names = "ref";
 				#phy-cells = <1>;
 			};
