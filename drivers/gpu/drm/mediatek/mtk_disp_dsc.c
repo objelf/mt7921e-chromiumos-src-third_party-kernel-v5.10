@@ -528,7 +528,7 @@ void mtk_dsc_config(struct device *dev, unsigned int w,
 		mtk_ddp_write_mask(handle, DSC_BYPASS,
 			&dsc->cmdq_reg, dsc->regs,
 			DISP_REG_DSC_CON, DSC_BYPASS);
-		mtk_ddp_write_mask(NULL, DSC_UFOE_SEL,
+		mtk_ddp_write_mask(handle, DSC_UFOE_SEL,
 			&dsc->cmdq_reg, dsc->regs,
 			DISP_REG_DSC_CON, DSC_UFOE_SEL);
 		mtk_ddp_write_mask(handle, DSC_DUAL_INOUT,
