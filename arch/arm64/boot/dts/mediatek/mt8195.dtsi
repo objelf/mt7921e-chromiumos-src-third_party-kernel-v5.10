@@ -1172,8 +1172,10 @@
 			compatible = "mediatek,mt8195-nor", "mediatek,mt8173-nor";
 			reg = <0 0x1132c000 0 0x1000>;
 			interrupts = <GIC_SPI 825 IRQ_TYPE_LEVEL_HIGH 0>;
-			clocks = <&clk26m>, <&clk26m>;
-			clock-names = "spi", "sf";
+			clocks = <&topckgen CLK_TOP_SPINOR_SEL>,
+				 <&pericfg_ao CLK_PERI_AO_FLASHIF_FLASH>,
+				 <&pericfg_ao CLK_PERI_AO_FLASHIF_BUS>;
+			clock-names = "spi", "sf", "axi";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
