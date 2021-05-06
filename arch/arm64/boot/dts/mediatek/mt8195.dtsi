@@ -1330,6 +1330,8 @@
 				 <&infracfg_ao CLK_INFRA_AO_MSDC1>,
 				 <&infracfg_ao CLK_INFRA_AO_MSDC1_SRC>;
 			clock-names = "source", "hclk", "source_cg";
+			assigned-clocks = <&topckgen CLK_TOP_MSDC30_1_SEL>;
+			assigned-clock-parents = <&topckgen CLK_TOP_MSDCPLL_D2>;
 			status = "disabled";
 		};
 
