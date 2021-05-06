@@ -971,6 +971,8 @@
 				 <&infracfg_ao CLK_INFRA_AO_PCIE_PERI_26M>,
 				 <&pericfg_ao CLK_PERI_AO_PCIE_P0_MEM>;
 
+			phys = <&pciephy>;
+			phy-names = "pcie-phy";
 			power-domains = <&spm MT8195_POWER_DOMAIN_PCIE_MAC_P0>;
 
 			#interrupt-cells = <1>;
@@ -1226,6 +1228,19 @@
 				clock-names = "ref";
 				#phy-cells = <1>;
 			};
+		};
+
+		pciephy: phy@11e80000 {
+			compatible = "mediatek,mt8195-pcie-phy";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			#phy-cells = <0>;
+			reg = <0 0x11e80000 0 0x10000>,
+			      <0 0x11e90000 0 0x10000>;
+			reg-names = "phy-sif", "phy-ckm";
+
+			power-domains = <&spm MT8195_POWER_DOMAIN_PCIE_PHY>;
+			status = "disabled";
 		};
 
 		ufsphy: phy@11fa0000 {
