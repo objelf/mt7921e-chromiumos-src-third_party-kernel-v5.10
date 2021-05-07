@@ -681,6 +681,14 @@
 			bias-pull-up;
 		};
 	};
+
+	touchpad_pins: touchpad-pins {
+		touchpad_int {
+			pinmux = <PINMUX_GPIO6__FUNC_GPIO6>;
+			input-enable;
+			bias-pull-up;
+		};
+	};
 };
 
 &disp_dpi1 {
@@ -718,6 +726,19 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_pin>;
+
+	touchpad@15 {
+		compatible = "elan,ekth3000";
+		reg = <0x15>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&touchpad_pins>;
+
+		interrupt-parent = <&pio>;
+		interrupts = <6 IRQ_TYPE_LEVEL_LOW>;
+
+		wakeup-source;
+	};
 };
 
 &i2c2 {
