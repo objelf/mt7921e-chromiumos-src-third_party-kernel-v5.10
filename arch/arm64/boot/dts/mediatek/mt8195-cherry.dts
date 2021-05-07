@@ -280,6 +280,17 @@
 };
 
 &pio {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pio_default>;
+
+	pio_default: pio_default {
+		wifi_enable {
+			pinmux = <PINMUX_GPIO58__FUNC_GPIO58>;
+			output-high;
+			drive-strength = <MTK_DRIVE_14mA>;
+		};
+	};
+
 	aud_pins_default: audiodefault {
 		pins_cmd_dat {
 		    pinmux = <PINMUX_GPIO69__FUNC_AUD_CLK_MOSI>,
