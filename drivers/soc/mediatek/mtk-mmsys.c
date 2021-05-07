@@ -50,12 +50,43 @@ static const struct mtk_mmsys_driver_data mt8195_mmsys_driver_data = {
 	.clk_driver = "clk-mt8195-vdo0",
 	.routes = mmsys_mt8195_routing_table,
 	.num_routes = ARRAY_SIZE(mmsys_mt8195_routing_table),
+	.indep_sub_disp = true,
+	.clk_driver1 = "clk-mt8195-vdo1",
+	.indep_sub_disp_comp_len = ARRAY_SIZE(mmsys_mt8195_sub_disp_comp),
+	.indep_sub_disp_comp = mmsys_mt8195_sub_disp_comp,
 };
 
 struct mtk_mmsys {
 	void __iomem *regs;
+	void __iomem *regs1;
 	const struct mtk_mmsys_driver_data *data;
 };
+
+static bool mtk_mmsys_comp_in_sub_disp(struct device *dev,
+	enum mtk_ddp_comp_id comp_id)
+{
+	int i;
+	struct mtk_mmsys *mmsys = dev_get_drvdata(dev);
+
+	if (mmsys->data->indep_sub_disp_comp_len) {
+		for (i = 0; i < mmsys->data->indep_sub_disp_comp_len; i++) {
+			if(mmsys->data->indep_sub_disp_comp[i] == comp_id)
+				return true;
+		}
+	}
+	return false;
+}
+
+static void __iomem * mtk_mmsys_get_comp_config_base(struct device *dev,
+                       enum mtk_ddp_comp_id comp_id)
+{
+	struct mtk_mmsys *mmsys = dev_get_drvdata(dev);
+
+	if (mtk_mmsys_comp_in_sub_disp(dev, comp_id))
+		return mmsys->regs1;
+	else
+		return mmsys->regs;
+}
 
 void mtk_mmsys_ddp_connect(struct device *dev,
 			   enum mtk_ddp_comp_id cur,
@@ -63,13 +94,14 @@ void mtk_mmsys_ddp_connect(struct device *dev,
 {
 	struct mtk_mmsys *mmsys = dev_get_drvdata(dev);
 	const struct mtk_mmsys_routes *routes = mmsys->data->routes;
+	void __iomem *reg_base = mtk_mmsys_get_comp_config_base(dev, cur);
 	u32 reg;
 	int i;
 
 	for (i = 0; i < mmsys->data->num_routes; i++)
 		if (cur == routes[i].from_comp && next == routes[i].to_comp) {
-			reg = readl_relaxed(mmsys->regs + routes[i].addr) | routes[i].val;
-			writel_relaxed(reg, mmsys->regs + routes[i].addr);
+			reg = readl_relaxed(reg_base + routes[i].addr) | routes[i].val;
+			writel_relaxed(reg, reg_base + routes[i].addr);
 		}
 }
 EXPORT_SYMBOL_GPL(mtk_mmsys_ddp_connect);
@@ -80,13 +112,14 @@ void mtk_mmsys_ddp_disconnect(struct device *dev,
 {
 	struct mtk_mmsys *mmsys = dev_get_drvdata(dev);
 	const struct mtk_mmsys_routes *routes = mmsys->data->routes;
+	void __iomem *reg_base = mtk_mmsys_get_comp_config_base(dev, cur);
 	u32 reg;
 	int i;
 
 	for (i = 0; i < mmsys->data->num_routes; i++)
 		if (cur == routes[i].from_comp && next == routes[i].to_comp) {
-			reg = readl_relaxed(mmsys->regs + routes[i].addr) & ~routes[i].val;
-			writel_relaxed(reg, mmsys->regs + routes[i].addr);
+			reg = readl_relaxed(reg_base + routes[i].addr) & ~routes[i].val;
+			writel_relaxed(reg, reg_base + routes[i].addr);
 		}
 }
 EXPORT_SYMBOL_GPL(mtk_mmsys_ddp_disconnect);
@@ -95,6 +128,7 @@ static int mtk_mmsys_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct platform_device *clks;
+	struct platform_device *clks1;
 	struct platform_device *drm;
 	struct mtk_mmsys *mmsys;
 	int ret;
@@ -111,12 +145,30 @@ static int mtk_mmsys_probe(struct platform_device *pdev)
 	}
 
 	mmsys->data = of_device_get_match_data(&pdev->dev);
+
+	if (mmsys->data->indep_sub_disp) {
+		mmsys->regs1 = devm_platform_ioremap_resource(pdev, 1);
+		if (IS_ERR(mmsys->regs1)) {
+			ret = PTR_ERR(mmsys->regs1);
+			dev_err(dev, "Failed to ioremap mmsys registers 1: %d\n", ret);
+			return ret;
+		}
+	}
+
 	platform_set_drvdata(pdev, mmsys);
 
 	clks = platform_device_register_data(&pdev->dev, mmsys->data->clk_driver,
 					     PLATFORM_DEVID_AUTO, NULL, 0);
 	if (IS_ERR(clks))
 		return PTR_ERR(clks);
+
+	if (mmsys->data->indep_sub_disp) {
+		clks1 = platform_device_register_data(&pdev->dev,
+					mmsys->data->clk_driver1,
+					PLATFORM_DEVID_AUTO, NULL, 0);
+		if (IS_ERR(clks1))
+			return PTR_ERR(clks1);
+	}
 
 	drm = platform_device_register_data(&pdev->dev, "mediatek-drm",
 					    PLATFORM_DEVID_AUTO, NULL, 0);

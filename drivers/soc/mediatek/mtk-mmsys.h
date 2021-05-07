@@ -77,6 +77,10 @@ struct mtk_mmsys_driver_data {
 	const char *clk_driver;
 	const struct mtk_mmsys_routes *routes;
 	const unsigned int num_routes;
+	bool indep_sub_disp;
+	const char *clk_driver1;
+	const enum mtk_ddp_comp_id *indep_sub_disp_comp;
+	unsigned int indep_sub_disp_comp_len;
 };
 
 /*
