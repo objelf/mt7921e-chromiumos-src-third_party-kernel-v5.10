@@ -646,9 +646,7 @@
 		};
 
 		pins1 {
-			pinmux = <PINMUX_GPIO140__FUNC_SPINOR_CS>,
-				 <PINMUX_GPIO130__FUNC_SPINOR_IO2>,
-				 <PINMUX_GPIO131__FUNC_SPINOR_IO3>;
+			pinmux = <PINMUX_GPIO140__FUNC_SPINOR_CS>;
 			drive-strength = <MTK_DRIVE_6mA>;
 			bias-pull-up;
 		};
