@@ -344,6 +344,8 @@ static const struct mtk_ddp_comp_funcs ddp_merge = {
 	.clk_disable = mtk_merge_clk_disable,
 	.start = mtk_merge_start,
 	.stop = mtk_merge_stop,
+	.enable_vblank = mtk_merge_enable_vblank,
+	.disable_vblank = mtk_merge_disable_vblank,
 	.config = mtk_merge_config,
 };
 
@@ -368,6 +370,24 @@ static const struct mtk_ddp_comp_funcs ddp_dp_intf = {
 };
 #endif
 
+static const struct mtk_ddp_comp_funcs ddp_pseudo_ovl = {
+	.clk_enable = mtk_pseudo_ovl_clk_enable,
+	.clk_disable = mtk_pseudo_ovl_clk_disable,
+	.config = mtk_pseudo_ovl_config,
+	.start = mtk_pseudo_ovl_start,
+	.stop = mtk_pseudo_ovl_stop,
+	.layer_nr = mtk_pseudo_ovl_layer_nr,
+	.layer_config = mtk_pseudo_ovl_layer_config,
+};
+
+static const struct mtk_ddp_comp_funcs ddp_ethdr = {
+	.clk_enable = mtk_ethdr_clk_enable,
+	.clk_disable = mtk_ethdr_clk_disable,
+	.config = mtk_ethdr_config,
+	.start = mtk_ethdr_start,
+	.stop = mtk_ethdr_stop,
+};
+
 static const char * const mtk_ddp_comp_stem[MTK_DDP_COMP_TYPE_MAX] = {
 	[MTK_DISP_OVL] = "ovl",
 	[MTK_DISP_OVL_2L] = "ovl-2l",
@@ -389,6 +409,8 @@ static const char * const mtk_ddp_comp_stem[MTK_DDP_COMP_TYPE_MAX] = {
 	[MTK_DISP_DSC] = "dsc",
 	[MTK_DISP_DPTX] = "dptx",
 	[MTK_DP_INTF] = "dp-intf",
+	[MTK_DISP_PSEUDO_OVL] = "pseudo_ovl",
+	[MTK_DISP_ETHDR] = "ethdr",
 };
 
 struct mtk_ddp_comp_match {
@@ -438,8 +460,11 @@ static const struct mtk_ddp_comp_match mtk_ddp_matches[DDP_COMPONENT_ID_MAX] = {
 	[DDP_COMPONENT_WDMA1]	= { MTK_DISP_WDMA,	1, NULL },
 #ifdef CONFIG_MTK_DPTX_SUPPORT
 	[DDP_COMPONENT_DP_INTF0]		= {MTK_DP_INTF,	0, &ddp_dp_intf },
+	[DDP_COMPONENT_DP_INTF1]   	= { MTK_DP_INTF,	1, NULL },
 	[DDP_COMPONENT_DPTX]		= {MTK_DISP_DPTX,	0, NULL },
 #endif
+	[DDP_COMPONENT_PSEUDO_OVL] = { MTK_DISP_PSEUDO_OVL,	0, &ddp_pseudo_ovl },
+	[DDP_COMPONENT_ETHDR] = { MTK_DISP_ETHDR, 0, &ddp_ethdr},
 };
 
 static bool mtk_drm_find_comp_in_ddp(struct device *dev,
@@ -529,7 +554,9 @@ int mtk_ddp_comp_init(struct device_node *node, struct mtk_ddp_comp *comp,
 	    type == MTK_DISP_OVL ||
 	    type == MTK_DISP_OVL_2L ||
 	    type == MTK_DISP_PWM ||
-	    type == MTK_DISP_RDMA)
+	    type == MTK_DISP_RDMA ||
+	    type == MTK_DISP_PSEUDO_OVL ||
+	    type == MTK_DISP_ETHDR)
 		return 0;
 
 	priv = devm_kzalloc(comp->dev, sizeof(*priv), GFP_KERNEL);

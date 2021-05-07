@@ -168,7 +168,10 @@ static const enum mtk_ddp_comp_id mt8195_mtk_ddp_main[] = {
 };
 
 static const enum mtk_ddp_comp_id mt8195_mtk_ddp_ext[] = {
-
+	DDP_COMPONENT_PSEUDO_OVL,
+	DDP_COMPONENT_ETHDR,
+	DDP_COMPONENT_MERGE5,
+	DDP_COMPONENT_DP_INTF1,
 };
 
 static const struct mtk_mmsys_driver_data mt2701_mmsys_driver_data = {
@@ -177,6 +180,7 @@ static const struct mtk_mmsys_driver_data mt2701_mmsys_driver_data = {
 	.ext_path = mt2701_mtk_ddp_ext,
 	.ext_len = ARRAY_SIZE(mt2701_mtk_ddp_ext),
 	.shadow_register = true,
+	.indep_sub_disp_path = 0,
 };
 
 static const struct mtk_mmsys_driver_data mt7623_mmsys_driver_data = {
@@ -185,6 +189,7 @@ static const struct mtk_mmsys_driver_data mt7623_mmsys_driver_data = {
 	.ext_path = mt7623_mtk_ddp_ext,
 	.ext_len = ARRAY_SIZE(mt7623_mtk_ddp_ext),
 	.shadow_register = true,
+	.indep_sub_disp_path = 0,
 };
 
 static const struct mtk_mmsys_driver_data mt2712_mmsys_driver_data = {
@@ -194,6 +199,7 @@ static const struct mtk_mmsys_driver_data mt2712_mmsys_driver_data = {
 	.ext_len = ARRAY_SIZE(mt2712_mtk_ddp_ext),
 	.third_path = mt2712_mtk_ddp_third,
 	.third_len = ARRAY_SIZE(mt2712_mtk_ddp_third),
+	.indep_sub_disp_path = 0,
 };
 
 static const struct mtk_mmsys_driver_data mt8173_mmsys_driver_data = {
@@ -201,6 +207,7 @@ static const struct mtk_mmsys_driver_data mt8173_mmsys_driver_data = {
 	.main_len = ARRAY_SIZE(mt8173_mtk_ddp_main),
 	.ext_path = mt8173_mtk_ddp_ext,
 	.ext_len = ARRAY_SIZE(mt8173_mtk_ddp_ext),
+	.indep_sub_disp_path = 0,
 };
 
 static const struct mtk_mmsys_driver_data mt8183_mmsys_driver_data = {
@@ -215,6 +222,7 @@ static const struct mtk_mmsys_driver_data mt8195_mmsys_driver_data = {
 	.main_len = ARRAY_SIZE(mt8195_mtk_ddp_main),
 	.ext_path = mt8195_mtk_ddp_ext,
 	.ext_len = ARRAY_SIZE(mt8195_mtk_ddp_ext),
+	.indep_sub_disp_path = BIT(1),
 };
 
 static int mtk_drm_kms_init(struct drm_device *drm)
@@ -525,6 +533,10 @@ static const struct of_device_id mtk_ddp_comp_dt_ids[] = {
 	  .data = (void *)MTK_DISP_PWM },
 	{ .compatible = "mediatek,mt8173-disp-od",
 	  .data = (void *)MTK_DISP_OD },
+	{ .compatible = "mediatek,mt8195-disp-pseudo-ovl",
+	  .data = (void *)MTK_DISP_PSEUDO_OVL },
+	{ .compatible = "mediatek,mt8195-disp-ethdr",
+	  .data = (void *)MTK_DISP_ETHDR },
 	{ }
 };
 
@@ -620,7 +632,9 @@ static int mtk_drm_probe(struct platform_device *pdev)
 		    comp_type == MTK_DISP_OVL_2L ||
 		    comp_type == MTK_DISP_RDMA ||
 		    comp_type == MTK_DSI ||
-		    comp_type == MTK_DPI) {
+		    comp_type == MTK_DPI ||
+		    comp_type == MTK_DISP_PSEUDO_OVL ||
+		    comp_type == MTK_DISP_ETHDR) {
 			dev_info(dev, "Adding component match for %pOF\n",
 				 node);
 			drm_of_component_match_add(dev, &match, compare_of,
@@ -725,6 +739,8 @@ static struct platform_driver * const mtk_drm_drivers[] = {
 #else
 	&mtk_dsi_driver,
 #endif
+	&mtk_disp_pseudo_ovl_driver,
+	&mtk_ethdr_driver,
 };
 
 static int __init mtk_drm_init(void)

@@ -96,6 +96,10 @@ void mtk_merge_config(struct device *dev, unsigned int width,
 		     unsigned int bpc, struct cmdq_pkt *cmdq_pkt);
 void mtk_merge_start(struct device *dev);
 void mtk_merge_stop(struct device *dev);
+void mtk_merge_enable_vblank(struct device *dev,
+			   void (*vblank_cb)(void *),
+			   void *vblank_cb_data);
+void mtk_merge_disable_vblank(struct device *dev);
 
 int mtk_dsc_clk_enable(struct device *dev);
 void mtk_dsc_clk_disable(struct device *dev);
@@ -109,5 +113,32 @@ void mtk_dsc_stop(struct device *dev);
 void mtk_dpintf_start(struct device *dev);
 void mtk_dpintf_stop(struct device *dev);
 #endif
+
+int mtk_pseudo_ovl_clk_enable(struct device *dev);
+void mtk_pseudo_ovl_clk_disable(struct device *dev);
+void mtk_pseudo_ovl_config(struct device *dev, unsigned int w,
+		    unsigned int h, unsigned int vrefresh,
+		    unsigned int bpc, struct cmdq_pkt *cmdq_pkt);
+void mtk_pseudo_ovl_start(struct device *dev);
+void mtk_pseudo_ovl_stop(struct device *dev);
+void mtk_pseudo_ovl_layer_config(struct device *dev, unsigned int idx,
+			   struct mtk_plane_state *state,
+			   struct cmdq_pkt *cmdq_pkt);
+void mtk_pseudo_ovl_layer_on(struct device *dev, unsigned int idx,
+		      struct cmdq_pkt *cmdq_pkt);
+void mtk_pseudo_ovl_layer_off(struct device *dev, unsigned int idx,
+		       struct cmdq_pkt *cmdq_pkt);
+unsigned int mtk_pseudo_ovl_layer_nr(struct device *dev);
+void mtk_pseudo_ovl_enable_vblank(struct device *dev,
+			   void (*vblank_cb)(void *),
+			   void *vblank_cb_data);
+void mtk_pseudo_ovl_disable_vblank(struct device *dev);
+int mtk_ethdr_clk_enable(struct device *dev);
+void mtk_ethdr_clk_disable(struct device *dev);
+void mtk_ethdr_config(struct device *dev, unsigned int w,
+		    unsigned int h, unsigned int vrefresh,
+		    unsigned int bpc, struct cmdq_pkt *cmdq_pkt);
+void mtk_ethdr_start(struct device *dev);
+void mtk_ethdr_stop(struct device *dev);
 
 #endif

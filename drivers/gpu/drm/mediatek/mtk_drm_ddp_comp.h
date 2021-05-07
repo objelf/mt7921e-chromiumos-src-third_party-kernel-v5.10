@@ -38,6 +38,8 @@ enum mtk_ddp_comp_type {
 	MTK_DISP_DSC,
 	MTK_DP_INTF,
 	MTK_DISP_DPTX,
+	MTK_DISP_PSEUDO_OVL,
+	MTK_DISP_ETHDR,
 	MTK_DDP_COMP_TYPE_MAX,
 };
 
@@ -114,18 +116,24 @@ static inline void mtk_ddp_comp_stop(struct mtk_ddp_comp *comp)
 		comp->funcs->stop(comp->dev);
 }
 
-static inline void mtk_ddp_comp_enable_vblank(struct mtk_ddp_comp *comp,
+static inline bool mtk_ddp_comp_enable_vblank(struct mtk_ddp_comp *comp,
 					      void (*vblank_cb)(void *),
 					      void *vblank_cb_data)
 {
-	if (comp->funcs && comp->funcs->enable_vblank)
+	if (comp->funcs && comp->funcs->enable_vblank) {
 		comp->funcs->enable_vblank(comp->dev, vblank_cb, vblank_cb_data);
+		return true;
+	}
+	return false;
 }
 
-static inline void mtk_ddp_comp_disable_vblank(struct mtk_ddp_comp *comp)
+static inline bool mtk_ddp_comp_disable_vblank(struct mtk_ddp_comp *comp)
 {
-	if (comp->funcs && comp->funcs->disable_vblank)
+	if (comp->funcs && comp->funcs->disable_vblank) {
 		comp->funcs->disable_vblank(comp->dev);
+		return true;
+	}
+	return false;
 }
 
 static inline

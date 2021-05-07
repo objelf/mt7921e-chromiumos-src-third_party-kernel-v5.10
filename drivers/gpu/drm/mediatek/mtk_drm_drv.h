@@ -29,6 +29,7 @@ struct mtk_mmsys_driver_data {
 	unsigned int third_len;
 
 	bool shadow_register;
+	unsigned int indep_sub_disp_path;
 };
 
 struct mtk_drm_private {
@@ -57,5 +58,7 @@ extern struct platform_driver mtk_dpi_driver;
 extern struct platform_driver mtk_dsi_driver;
 extern struct platform_driver mtk_dpintf_driver;
 extern struct platform_driver mtk_dp_tx_driver;
+extern struct platform_driver mtk_disp_pseudo_ovl_driver;
+extern struct platform_driver mtk_ethdr_driver;
 
 #endif /* MTK_DRM_DRV_H */
