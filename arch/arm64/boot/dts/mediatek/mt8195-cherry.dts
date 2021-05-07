@@ -469,7 +469,7 @@
 
 &i2c1 {
 	status = "okay";
-	clock-frequency = <1000000>;
+	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_pin>;
 };
@@ -498,13 +498,14 @@
 };
 
 &i2c4 {
-	status = "disabled";
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c4_pin>;
 };
 
 &i2c5 {
-	status = "disabled";
+	status = "okay";
+	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c5_pin>;
 };
@@ -516,7 +517,8 @@
 };
 
 &i2c7 {
-	status = "disabled";
+	status = "okay";
+	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c7_pin>;
 };
