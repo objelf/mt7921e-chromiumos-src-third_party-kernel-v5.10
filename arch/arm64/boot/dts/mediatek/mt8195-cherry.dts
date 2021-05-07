@@ -19,7 +19,6 @@
 		i2c3 = &i2c3;
 		i2c4 = &i2c4;
 		i2c5 = &i2c5;
-		i2c6 = &i2c6;
 		i2c7 = &i2c7;
 		mmc0 = &mmc0;
 	};
@@ -276,8 +275,7 @@
 		pins_bus {
 			pinmux = <PINMUX_GPIO8__FUNC_SDA0>,
 				 <PINMUX_GPIO9__FUNC_SCL0>;
-			bias-pull-up;
-			mediatek,rsel = <7>;
+			bias-disable;
 			mediatek,drive-strength-adv = <7>;
 		};
 	};
@@ -296,8 +294,7 @@
 		pins_bus {
 			pinmux = <PINMUX_GPIO12__FUNC_SDA2>,
 				 <PINMUX_GPIO13__FUNC_SCL2>;
-			bias-pull-up;
-			mediatek,rsel = <7>;
+			bias-disable;
 			mediatek,drive-strength-adv = <7>;
 		};
 	};
@@ -326,16 +323,8 @@
 		pins_bus {
 			pinmux = <PINMUX_GPIO29__FUNC_SCL5>,
 				 <PINMUX_GPIO30__FUNC_SDA5>;
-			bias-pull-up;
-			mediatek,rsel = <7>;
+			bias-disable;
 			mediatek,drive-strength-adv = <7>;
-		};
-	};
-
-	i2c6_pin: i2c6_pin {
-		pins_bus {
-			pinmux = <PINMUX_GPIO25__FUNC_SDA6>,
-				 <PINMUX_GPIO26__FUNC_SCL6>;
 		};
 	};
 
@@ -343,6 +332,7 @@
 		pins_bus {
 			pinmux = <PINMUX_GPIO27__FUNC_SCL7>,
 				 <PINMUX_GPIO28__FUNC_SDA7>;
+			bias-disable;
 		};
 	};
 
@@ -536,14 +526,14 @@
 
 &i2c2 {
 	status = "okay";
-	clock-frequency = <100000>;
+	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c2_pin>;
 };
 
 &i2c3 {
 	status = "okay";
-	clock-frequency = <100000>;
+	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c3_pin>;
 
@@ -559,6 +549,7 @@
 
 &i2c4 {
 	status = "okay";
+	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c4_pin>;
 };
@@ -568,12 +559,6 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c5_pin>;
-};
-
-&i2c6 {
-	status = "disabled";
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c6_pin>;
 };
 
 &i2c7 {
