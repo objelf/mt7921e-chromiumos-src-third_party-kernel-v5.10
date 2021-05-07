@@ -258,7 +258,7 @@
 			pinmux = <PINMUX_GPIO10__FUNC_SDA1>,
 				 <PINMUX_GPIO11__FUNC_SCL1>;
 			bias-pull-up;
-			mediatek,rsel = <3>;
+			mediatek,rsel = <7>;
 			mediatek,drive-strength-adv = <7>;
 		};
 	};
@@ -288,7 +288,7 @@
 			pinmux = <PINMUX_GPIO16__FUNC_SDA4>,
 				 <PINMUX_GPIO17__FUNC_SCL4>;
 			bias-pull-up;
-			mediatek,pull-up-adv = <1>;
+			mediatek,rsel = <7>;
 			mediatek,drive-strength-adv = <7>;
 		};
 	};
@@ -298,7 +298,7 @@
 			pinmux = <PINMUX_GPIO29__FUNC_SCL5>,
 				 <PINMUX_GPIO30__FUNC_SDA5>;
 			bias-pull-up;
-			mediatek,pull-up-adv = <1>;
+			mediatek,rsel = <7>;
 			mediatek,drive-strength-adv = <7>;
 		};
 	};
@@ -347,20 +347,20 @@
 				 <PINMUX_GPIO116__FUNC_MSDC0_DAT7>,
 				 <PINMUX_GPIO121__FUNC_MSDC0_CMD>;
 			input-enable;
-			drive-strenth = <3>;
-			mediatek,pull-up-adv = <1>;
+			drive-strenth = <MTK_DRIVE_8mA>;
+			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
 		};
 
 		pins_clk {
 			pinmux = <PINMUX_GPIO122__FUNC_MSDC0_CLK>;
-			drive-strenth = <3>;
-			mediatek,pull-down-adv = <2>;
+			drive-strenth = <MTK_DRIVE_8mA>;
+			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
 		};
 
 		pins_rst {
 			pinmux = <PINMUX_GPIO120__FUNC_MSDC0_RSTB>;
-			drive-strenth = <3>;
-			mediatek,pull-up-adv = <1>;
+			drive-strenth = <MTK_DRIVE_8mA>;
+			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
 		};
 	};
 
@@ -376,26 +376,26 @@
 				 <PINMUX_GPIO116__FUNC_MSDC0_DAT7>,
 				 <PINMUX_GPIO121__FUNC_MSDC0_CMD>;
 			input-enable;
-			drive-strenth = <4>;
-			mediatek,pull-up-adv = <1>;
+			drive-strenth = <MTK_DRIVE_10mA>;
+			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
 		};
 
 		pins_clk {
 			pinmux = <PINMUX_GPIO122__FUNC_MSDC0_CLK>;
-			drive-strenth = <4>;
-			mediatek,pull-down-adv = <2>;
+			drive-strenth = <MTK_DRIVE_10mA>;
+			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
 		};
 
 		pins_ds {
 			pinmux = <PINMUX_GPIO127__FUNC_MSDC0_DSL>;
-			drive-strenth = <4>;
-			mediatek,pull-down-adv = <2>;
+			drive-strenth = <MTK_DRIVE_10mA>;
+			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
 		};
 
 		pins_rst {
 			pinmux = <PINMUX_GPIO120__FUNC_MSDC0_RSTB>;
-			drive-strenth = <3>;
-			mediatek,pull-up-adv = <1>;
+			drive-strenth = <MTK_DRIVE_8mA>;
+			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
 		};
 	};
 
