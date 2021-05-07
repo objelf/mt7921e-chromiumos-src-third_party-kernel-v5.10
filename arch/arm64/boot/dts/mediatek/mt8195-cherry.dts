@@ -3,6 +3,7 @@
  * Copyright (C) 2021 MediaTek Inc.
  */
 /dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
 #include "mt8195.dtsi"
 
 / {
@@ -25,4 +26,7 @@
 
 &uart0 {
 	status = "okay";
+};
+
+&pio {
 };
