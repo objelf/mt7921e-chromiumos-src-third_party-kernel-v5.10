@@ -225,4 +225,45 @@
 			mediatek,pull-up-adv = <1>;
 		};
 	};
+
+	hdmi0_pins_default: hdmi0default {
+		hdmirx_hpd {
+			pinmux = <PINMUX_GPIO27__FUNC_HDMIRX20_HTPLG>;
+		};
+		hdmirx_5v {
+			pinmux = <PINMUX_GPIO28__FUNC_HDMIRX20_PWR5V>;
+			bias-disable;
+		};
+		hdmirx_scl {
+			pinmux = <PINMUX_GPIO29__FUNC_HDMIRX20_SCL>;
+		};
+		hdmirx_sda {
+			pinmux = <PINMUX_GPIO30__FUNC_HDMIRX20_SDA>;
+			mediatek,drive-strength-adv = <0>;
+			drive-strength = <MTK_DRIVE_10mA>;
+		};
+	};
+};
+
+&disp_dpi1 {
+	status = "okay";
+	port {
+		dpi1_out: endpoint@0 {
+			remote-endpoint = <&hdmi0_in>;
+		};
+	};
+};
+
+&hdmi0 {
+	status = "okay";
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			hdmi0_in: endpoint {
+				remote-endpoint = <&dpi1_out>;
+			};
+		};
+	};
 };
