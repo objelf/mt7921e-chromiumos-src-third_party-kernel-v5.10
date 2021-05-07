@@ -892,3 +892,5 @@
 		};
 	};
 };
+
+#include <arm/cros-ec-keyboard.dtsi>
