@@ -131,6 +131,9 @@
 	#define MT8195_DISP_MERGE_CFG_41_VAL_PREULTRA_TH_HIGH(val) \
 		REG_FLD_VAL(MT8195_DISP_MERGE_CFG_41_FLD_PREULTRA_TH_HIGH, (val))
 
+#define DISP_REG_MERGE_CFG2_0 (0x160)
+#define DISP_REG_MERGE_CFG2_2 (0x168)
+
 struct mtk_disp_merge_data {
 	bool need_golden_setting;
 	enum mtk_ddp_comp_id gs_comp_id;
@@ -394,6 +397,8 @@ int mtk_merge_clk_enable(struct device *dev)
 
 	ret = pm_runtime_get_sync(dev);
 
+	ret = pm_runtime_get_sync(dev);
+
 	if (priv->clk != NULL) {
 		ret = clk_prepare_enable(priv->clk);
 		if (ret)
@@ -414,6 +419,9 @@ void mtk_merge_clk_disable(struct device *dev)
 	struct mtk_disp_merge *priv = dev_get_drvdata(dev);
 
 	pr_debug("%s\n", __func__);
+
+	if (priv->async_clk != NULL)
+		clk_disable_unprepare(priv->async_clk);
 
 	if (priv->async_clk != NULL)
 		clk_disable_unprepare(priv->async_clk);
@@ -462,6 +470,22 @@ static void mtk_disp_merge_unbind(struct device *dev, struct device *master,
 				  void *data)
 {
 	pr_debug("%s\n", __func__);
+}
+
+static irqreturn_t mtk_disp_merge_irq_handler(int irq, void *dev_id)
+{
+	struct mtk_disp_merge *priv = dev_id;
+
+	/* Clear frame completion interrupt */
+	writel(0x1, priv->regs + DISP_REG_MERGE_CFG2_2);
+	writel(0x0, priv->regs + DISP_REG_MERGE_CFG2_2);
+
+	if (!priv->vblank_cb)
+		return IRQ_NONE;
+
+	priv->vblank_cb(priv->vblank_cb_data);
+
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t mtk_disp_merge_irq_handler(int irq, void *dev_id)
