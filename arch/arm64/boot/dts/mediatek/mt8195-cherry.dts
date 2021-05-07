@@ -214,6 +214,80 @@
 };
 
 &pio {
+	i2c0_pin: i2c0_pin {
+		pins_bus {
+			pinmux = <PINMUX_GPIO8__FUNC_SDA0>,
+				 <PINMUX_GPIO9__FUNC_SCL0>;
+			bias-pull-up;
+			mediatek,rsel = <7>;
+			mediatek,drive-strength-adv = <7>;
+		};
+	};
+
+	i2c1_pin: i2c1_pin {
+		pins_bus {
+			pinmux = <PINMUX_GPIO10__FUNC_SDA1>,
+				 <PINMUX_GPIO11__FUNC_SCL1>;
+			bias-pull-up;
+			mediatek,rsel = <3>;
+			mediatek,drive-strength-adv = <7>;
+		};
+	};
+
+	i2c2_pin: i2c2_pin {
+		pins_bus {
+			pinmux = <PINMUX_GPIO12__FUNC_SDA2>,
+				 <PINMUX_GPIO13__FUNC_SCL2>;
+			bias-pull-up;
+			mediatek,rsel = <7>;
+			mediatek,drive-strength-adv = <7>;
+		};
+	};
+
+	i2c3_pin: i2c3_pin {
+		pins_bus {
+			pinmux = <PINMUX_GPIO14__FUNC_SDA3>,
+				 <PINMUX_GPIO15__FUNC_SCL3>;
+			bias-pull-up;
+			mediatek,rsel = <7>;
+			mediatek,drive-strength-adv = <7>;
+		};
+	};
+
+	i2c4_pin: i2c4_pin {
+		pins_bus {
+			pinmux = <PINMUX_GPIO16__FUNC_SDA4>,
+				 <PINMUX_GPIO17__FUNC_SCL4>;
+			bias-pull-up;
+			mediatek,pull-up-adv = <1>;
+			mediatek,drive-strength-adv = <7>;
+		};
+	};
+
+	i2c5_pin: i2c5_pin {
+		pins_bus {
+			pinmux = <PINMUX_GPIO29__FUNC_SCL5>,
+				 <PINMUX_GPIO30__FUNC_SDA5>;
+			bias-pull-up;
+			mediatek,pull-up-adv = <1>;
+			mediatek,drive-strength-adv = <7>;
+		};
+	};
+
+	i2c6_pin: i2c6_pin {
+		pins_bus {
+			pinmux = <PINMUX_GPIO25__FUNC_SDA6>,
+				 <PINMUX_GPIO26__FUNC_SCL6>;
+		};
+	};
+
+	i2c7_pin: i2c7_pin {
+		pins_bus {
+			pinmux = <PINMUX_GPIO27__FUNC_SCL7>,
+				 <PINMUX_GPIO28__FUNC_SDA7>;
+		};
+	};
+
 	pcie0_pins_default: pcie0default {
 		pins {
 			pinmux = <PINMUX_GPIO19__FUNC_WAKEN>,
@@ -336,6 +410,58 @@
 			};
 		};
 	};
+};
+
+&i2c0 {
+	status = "okay";
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pin>;
+};
+
+&i2c1 {
+	status = "okay";
+	clock-frequency = <1000000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pin>;
+};
+
+&i2c2 {
+	status = "okay";
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_pin>;
+};
+
+&i2c3 {
+	status = "okay";
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c3_pin>;
+};
+
+&i2c4 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4_pin>;
+};
+
+&i2c5 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c5_pin>;
+};
+
+&i2c6 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c6_pin>;
+};
+
+&i2c7 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c7_pin>;
 };
 
 &xhci {
