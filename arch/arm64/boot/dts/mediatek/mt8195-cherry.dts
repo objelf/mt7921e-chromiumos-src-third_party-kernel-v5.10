@@ -5,6 +5,7 @@
 /dts-v1/;
 #include <dt-bindings/gpio/gpio.h>
 #include "mt8195.dtsi"
+#include "mt6359.dtsi"
 
 / {
 	model = "MediaTek Cherry board";
@@ -22,6 +23,34 @@
 		device_type = "memory";
 		reg = <0 0x40000000 0 0x80000000>;
 	};
+};
+
+&pmic {
+	interrupt-parent = <&pio>;
+	interrupts = <222 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+/* for CORE */
+&mt6359_vgpu11_buck_reg {
+	regulator-always-on;
+};
+
+/* for CORE SRAM */
+&mt6359_vpu_buck_reg {
+	regulator-always-on;
+};
+
+/* for CPU-L */
+&mt6359_vcore_buck_reg {
+	regulator-always-on;
+};
+
+&mt6359_vaud18_ldo_reg {
+	regulator-always-on;
+};
+
+&mt6359_vrf12_ldo_reg {
+	regulator-always-on;
 };
 
 &spmi {
