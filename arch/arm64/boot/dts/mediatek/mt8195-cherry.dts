@@ -114,6 +114,10 @@
 	status = "okay";
 };
 
+&pciephy {
+	status = "okay";
+};
+
 &pio {
 	pcie0_pins_default: pcie0default {
 		pins {
