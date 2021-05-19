@@ -206,7 +206,7 @@ static const struct mtk_disp_ccorr_data mt8183_ccorr_driver_data = {
 };
 
 static const struct of_device_id mtk_disp_ccorr_driver_dt_match[] = {
-	{ .compatible = "mediatek,mt8183-disp-ccorr",
+	{ .compatible = "mediatek,mt8195-disp-ccorr",
 	  .data = &mt8183_ccorr_driver_data},
 	{},
 };
