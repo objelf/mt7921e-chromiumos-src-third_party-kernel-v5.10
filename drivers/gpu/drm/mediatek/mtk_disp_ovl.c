@@ -27,6 +27,11 @@
 #define DISP_REG_OVL_DATAPATH_CON		0x0024
 #define OVL_LAYER_SMI_ID_EN				BIT(0)
 #define OVL_BGCLR_SEL_IN				BIT(2)
+#define OVL_GCLAST_EN					BIT(24)
+#define OVL_HDR_GCLAST_EN				BIT(25)
+#define OVL_OUTPUT_CLAMP				BIT(26)
+#define OVL_DATAPATH_CON				(OVL_LAYER_SMI_ID_EN | \
+					OVL_GCLAST_EN | OVL_HDR_GCLAST_EN | OVL_OUTPUT_CLAMP)
 #define DISP_REG_OVL_ROI_BGCLR			0x0028
 #define DISP_REG_OVL_SRC_CON			0x002c
 #define DISP_REG_OVL_CON(n)			(0x0030 + 0x20 * (n))
@@ -238,6 +243,10 @@ void mtk_ovl_layer_on(struct device *dev, unsigned int idx,
 			    gmc_thrshd_h << 16 | gmc_thrshd_h << 24;
 	mtk_ddp_write(cmdq_pkt, gmc_value,
 		      &ovl->cmdq_reg, ovl->regs, DISP_REG_OVL_RDMA_GMC(idx));
+
+	mtk_ddp_write_mask(cmdq_pkt, OVL_DATAPATH_CON, &ovl->cmdq_reg, ovl->regs,
+				 DISP_REG_OVL_DATAPATH_CON, OVL_DATAPATH_CON);
+
 	mtk_ddp_write_mask(cmdq_pkt, BIT(idx), &ovl->cmdq_reg, ovl->regs,
 			   DISP_REG_OVL_SRC_CON, BIT(idx));
 }
@@ -466,7 +475,7 @@ static const struct mtk_disp_ovl_data mt8183_ovl_2l_driver_data = {
 static const struct mtk_disp_ovl_data mt8195_ovl_driver_data = {
 	.addr = DISP_REG_OVL_ADDR_MT8173,
 	.gmc_bits = 10,
-	.layer_nr = 2,
+	.layer_nr = 4,
 	.fmt_rgb565_is_0 = true,
 };
 
