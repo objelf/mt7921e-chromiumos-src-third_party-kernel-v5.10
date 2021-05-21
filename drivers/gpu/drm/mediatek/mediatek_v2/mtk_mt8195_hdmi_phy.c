@@ -10,14 +10,12 @@
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
+#include <linux/nvmem-consumer.h>
 
 #include "mtk_hdmi_regs.h"
 #include "mtk_hdmi_phy.h"
 
 static const char * const mtk_hdmi_phy_clk_names[MTK_HDMI_PHY_CLK_COUNT] = {
-	[MTK_HDMI_PHY_HDMIPLL1] = "hdmi_pll1",
-	[MTK_HDMI_PHY_HDMIPLL2] = "hdmi_pll2",
-	[MTK_HDMI_PHY_HDMI_26M] = "hdmi_26m",
 	[MTK_HDMI_PHY_XTAL_SEL] = "hdmi_xtal_sel",
 };
 
@@ -263,8 +261,12 @@ static int mtk_hdmi_txpll_performance_setting(struct clk_hw *hw)
 	mtk_hdmi_phy_mask(hdmi_phy, HDMI_1_PLL_CFG_0,
 		0x1 << RG_HDMITXPLL_TCL_EN_SHIFT, RG_HDMITXPLL_TCL_EN);
 
-	/* disable read calibration impedance from efuse */
-	mtk_hdmi_phy_mask(hdmi_phy, HDMI_CTL_1, 0x1f << 3, (0x1f << 3));
+	if (hdmi_phy->efuse == 0) {
+		/* disable read calibration impedance from efuse */
+		mtk_hdmi_phy_mask(hdmi_phy, HDMI_CTL_1,
+			0x1f << RG_INTR_IMP_RG_MODE_SHIFT,
+			RG_INTR_IMP_RG_MODE);
+	}
 
 	return 0;
 }
@@ -277,13 +279,13 @@ static int mtk_hdmi_txpll_set_hw(struct clk_hw *hw,
 	unsigned char txprediv, unsigned char txposdiv,
 	unsigned char digital_div)
 {
-	unsigned char txposdiv_value;
-	unsigned char div3_ctrl_value;
-	unsigned char posdiv_vallue;
-	unsigned char div_ctrl_value;
-	unsigned char reserve_3_2_value;
-	unsigned char prediv_value;
-	unsigned char reserve13_value;
+	unsigned char txposdiv_value = 0;
+	unsigned char div3_ctrl_value = 0;
+	unsigned char posdiv_vallue = 0;
+	unsigned char div_ctrl_value = 0;
+	unsigned char reserve_3_2_value = 0;
+	unsigned char prediv_value = 0;
+	unsigned char reserve13_value = 0;
 
 	struct mtk_hdmi_phy *hdmi_phy = to_mtk_hdmi_phy(hw);
 
@@ -292,9 +294,6 @@ static int mtk_hdmi_txpll_set_hw(struct clk_hw *hw,
 	mtk_hdmi_txpll_performance_setting(hw);
 
 
-	mtk_hdmi_phy_mask(hdmi_phy, HDMI_CTL_1,
-		0x1f << RG_INTR_IMP_RG_MODE_SHIFT,
-		RG_INTR_IMP_RG_MODE);
 	mtk_hdmi_phy_mask(hdmi_phy, HDMI_1_CFG_10,
 		0x2 << RG_HDMITX21_BIAS_PE_BG_VREF_SEL_SHIFT,
 		RG_HDMITX21_BIAS_PE_BG_VREF_SEL);
@@ -476,24 +475,27 @@ static int mtk_hdmi_txpll_calculate_params(struct clk_hw *hw,
 	unsigned long rate, unsigned long parent_rate)
 {
 	int ret;
-	unsigned long long tmds_clk, pixel_clk;
+	unsigned long long tmds_clk = 0;
+	unsigned long long  pixel_clk = 0;
 	//ref clock from hdmi Rx
-	unsigned long long hdmirx_ref_ck;
-	unsigned char hdmirx_ref_ck_div;
+	unsigned long long hdmirx_ref_ck= 0;
+	unsigned char hdmirx_ref_ck_div = 0;
 	//ref clock from tvd pll
-	unsigned long long ad_respll_ck;
-	unsigned char ad_respll_ck_div;
+	unsigned long long ad_respll_ck = 0;
+	unsigned char ad_respll_ck_div = 0;
 	//txpll input source frequency
-	unsigned long long da_hdmitx21_ref_ck;
-	unsigned long long ns_hdmitxpll_ck; //ICO output clk
+	unsigned long long da_hdmitx21_ref_ck = 0;
+	unsigned long long ns_hdmitxpll_ck = 0; //ICO output clk
 	//source clk for Display digital
-	unsigned long long ad_hdmitxpll_pixel_ck;
-	unsigned char digital_div;
-	unsigned long long pcw; //FBDIV
-	unsigned char txprediv, txposdiv;
-	unsigned char fbkdiv_high;
-	unsigned long fbkdiv_low;
-	unsigned char posdiv1, posdiv2;
+	unsigned long long ad_hdmitxpll_pixel_ck = 0;
+	unsigned char digital_div = 0;
+	unsigned long long pcw = 0; //FBDIV
+	unsigned char txprediv = 0;
+	unsigned char txposdiv = 0;
+	unsigned char fbkdiv_high = 0;
+	unsigned long fbkdiv_low = 0;
+	unsigned char posdiv1 = 0;
+	unsigned char posdiv2 = 0;
 	unsigned char prediv = 1; //prediv is always 1
 	unsigned char fbkdiv_hs3 = 1; //fbkdiv_hs3 is always 1
 	int i = 0;
@@ -504,20 +506,37 @@ static int mtk_hdmi_txpll_calculate_params(struct clk_hw *hw,
 
 	pixel_clk = hdmi->mode.clock * 1000;//in HZ
 
-//can.zeng todo verify, recognize whether ycbcr422 here??
 /* TMDS clk frequency */
-	if (hdmi->color_depth == HDMI_8_BIT)
-		tmds_clk = pixel_clk;
-	else if (hdmi->color_depth == HDMI_10_BIT)
-		tmds_clk = pixel_clk * 5 / 4; // *1.25
-	else if (hdmi->color_depth == HDMI_12_BIT)
-		tmds_clk = pixel_clk * 3 / 2; // *1.5
-	else if (hdmi->color_depth == HDMI_16_BIT)
-		tmds_clk = pixel_clk * 2; // *2
-	else {
-		HDMI_PHY_LOG("%s, unknown color depth\n", __func__);
-		return -EINVAL;
-	}
+	if ((hdmi->csp == HDMI_COLORSPACE_RGB) || (hdmi->csp == HDMI_COLORSPACE_YUV444)) {
+		if (hdmi->color_depth == HDMI_8_BIT)
+			tmds_clk = pixel_clk;
+		else if (hdmi->color_depth == HDMI_10_BIT)
+			tmds_clk = pixel_clk * 5 / 4; // *1.25
+		else if (hdmi->color_depth == HDMI_12_BIT)
+			tmds_clk = pixel_clk * 3 / 2; // *1.5
+		else if (hdmi->color_depth == HDMI_16_BIT)
+			tmds_clk = pixel_clk * 2; // *2
+		else {
+			HDMI_PHY_LOG("%s, unknown color depth\n", __func__);
+			return -EINVAL;
+		}
+	} else if (hdmi->csp == HDMI_COLORSPACE_YUV422)
+		tmds_clk = pixel_clk; //YUV420,12bit,TMDS_CLK == 8bit RGB444 TMDS_CLK
+	else if (hdmi->csp == HDMI_COLORSPACE_YUV420) {
+		if (hdmi->color_depth == HDMI_8_BIT)
+			tmds_clk = pixel_clk / 2;
+		else if (hdmi->color_depth == HDMI_10_BIT)
+			tmds_clk = pixel_clk / 2 * 5 / 4; // *1.25
+		else if (hdmi->color_depth == HDMI_12_BIT)
+			tmds_clk = pixel_clk / 2 * 3 / 2; // *1.5
+		else if (hdmi->color_depth == HDMI_16_BIT)
+			tmds_clk = pixel_clk / 2 * 2; // *2
+		else {
+			HDMI_PHY_LOG("%s, unknown color depth\n", __func__);
+			return -EINVAL;
+		}
+	} else
+		HDMI_PHY_LOG("unknown color space\n");
 
 	if ((tmds_clk < hdmi_phy->min_tmds_clock) &&
 		(tmds_clk > hdmi_phy->max_tmds_clock)) {
@@ -538,7 +557,7 @@ static int mtk_hdmi_txpll_calculate_params(struct clk_hw *hw,
 		da_hdmitx21_ref_ck = 26000000UL; //in HZ
 	else if (hdmi_phy->clk_parent == HDMIRX) {
 		hdmirx_ref_ck = hdmi_phy->rx_clk_rate;
-		HDMI_PHY_LOG("Rx ref clk, hdmirx_ref_ck=%lld\n", hdmirx_ref_ck);
+		HDMI_PHY_LOG("Rx ref clk, hdmirx_ref_ck=%d\n", hdmirx_ref_ck);
 		for (i = 32; i >= 1; i--)
 			if (((hdmirx_ref_ck / i / prediv) >= 20000000UL) &&
 				((hdmirx_ref_ck / i / prediv) <= 30000000UL))
@@ -649,26 +668,6 @@ static int mtk_hdmi_txpll_calculate_params(struct clk_hw *hw,
 			fbkdiv_low = fbkdiv_low & (~(GENMASK(23, 0)));
 	}
 
-/* AD_HDMITXPLL_PIXEL_CK to Display Digital
- * stage treatment:
- * 480p,576p pixel clk 27M,54M, ->ad_hdmitxpll_pixel_ck 648M
- * >HD and framerate is integeral, ->ad_hdmitxpll_pixel_ck 594M
- * >HD but framerate is fractinal, ->ad_hdmitxpll_pixel_ck 593.4M
- */
-
-/*can.zeng todo verify
- *ad_hdmitxpll_pixel_ck shall according to the real pixel clk
- *not fixed 648M, 594M, 593.4M
- *	if ((pixel_clk % 27000000UL) == 0)
- *		ad_hdmitxpll_pixel_ck = 648000000UL; //648M
- *	else if (pixel_clk % 74250000UL == 0)
- *		ad_hdmitxpll_pixel_ck = 594000000UL; //594M
- *	else if (pixel_clk % 74135000UL == 0)
- *		ad_hdmitxpll_pixel_ck = 593400000UL; //593.4M
- *	else
- *		HDMI_PHY_LOG("error un-regular pixel clock\n");
- */
-
 /* posdiv1:
  * posdiv1 stage treatment according to color_depth:
  * 24bit -> posdiv1 /10, 30bit -> posdiv1 /12.5,
@@ -679,23 +678,32 @@ static int mtk_hdmi_txpll_calculate_params(struct clk_hw *hw,
 //and pixel clock be generated by Digital Divider, max /32
 /* posdiv2:
  */
-	if ((hdmi->color_depth == HDMI_8_BIT) ||
-		(hdmi->color_depth == HDMI_16_BIT)) {
+	if ((hdmi->csp == HDMI_COLORSPACE_RGB) || (hdmi->csp == HDMI_COLORSPACE_YUV444)
+	|| (hdmi->csp == HDMI_COLORSPACE_YUV420)) {
+		if ((hdmi->color_depth == HDMI_8_BIT) ||
+			(hdmi->color_depth == HDMI_16_BIT)) {
+			posdiv1 = 10; // div 10
+			posdiv2 = 1;
+			ad_hdmitxpll_pixel_ck = (ns_hdmitxpll_ck / 10) / 1;
+		} else if (hdmi->color_depth == HDMI_10_BIT) {
+			posdiv1 = 125 / 10; // div 12.5
+			posdiv2 = 1;
+			ad_hdmitxpll_pixel_ck = ((ns_hdmitxpll_ck * 10) / 125) / 1;
+		} else if (hdmi->color_depth == HDMI_12_BIT) {
+			posdiv1 = 15; // div 15
+			posdiv2 = 1;
+			ad_hdmitxpll_pixel_ck = (ns_hdmitxpll_ck / 15) / 1;
+		} else {
+			HDMI_PHY_LOG("%s, unknown color depth\n", __func__);
+			return -EINVAL;
+		}
+	} else if (hdmi->csp == HDMI_COLORSPACE_YUV422) {
+		//yuv422 is the same as yuv444 8bit
 		posdiv1 = 10; // div 10
 		posdiv2 = 1;
 		ad_hdmitxpll_pixel_ck = (ns_hdmitxpll_ck / 10) / 1;
-	} else if (hdmi->color_depth == HDMI_10_BIT) {
-		posdiv1 = 125 / 10; // div 12.5
-		posdiv2 = 1;
-		ad_hdmitxpll_pixel_ck = ((ns_hdmitxpll_ck * 10) / 125) / 1;
-	} else if (hdmi->color_depth == HDMI_12_BIT) {
-		posdiv1 = 15; // div 15
-		posdiv2 = 1;
-		ad_hdmitxpll_pixel_ck = (ns_hdmitxpll_ck / 15) / 1;
-	} else {
-		HDMI_PHY_LOG("%s, unknown color depth\n", __func__);
-		return -EINVAL;
-	}
+	} else
+		HDMI_PHY_LOG("unknown color space\n");
 	HDMI_PHY_LOG("ad_hdmitxpll_pixel_clk =%ull\n", ad_hdmitxpll_pixel_ck);
 
 /* Digital clk divider, max /32 */
@@ -730,6 +738,7 @@ static int mtk_hdmi_txpll_calculate_params(struct clk_hw *hw,
 	pr_info("txposdiv = %d\n", txposdiv);
 
 	pr_info("hdmi->color_depth=%d\n", hdmi->color_depth);
+	pr_info("hdmi->color_space=%d\n", hdmi->csp);
 	return 0;
 }
 
@@ -985,8 +994,6 @@ static const struct clk_ops mtk_hdmi_txpll_ops = {
 
 void vTxSignalOnOff(struct mtk_hdmi_phy *hdmi_phy, bool OnOff)
 {
-	HDMI_PHY_FUNC();
-
 	if (OnOff) {
 		HDMI_PHY_LOG("HDMI Tx TMDS ON\n");
 
@@ -1088,10 +1095,14 @@ static int mtk_hdmi_phy_power_on(struct phy *phy)
 	struct mtk_hdmi_phy *hdmi_phy = phy_get_drvdata(phy);
 	int ret;
 
-	ret = clk_prepare_enable(hdmi_phy->txpll);
-	if (ret < 0)
-		return ret;
+	HDMI_PHY_FUNC();
 
+	if (__clk_is_enabled(hdmi_phy->txpll) == false) {
+		ret = clk_prepare_enable(hdmi_phy->txpll);
+		if (ret < 0)
+			return ret;
+	}
+	udelay(10);
 	mtk_hdmi_phy_enable_tmds(hdmi_phy);
 
 	return 0;
@@ -1101,8 +1112,12 @@ static int mtk_hdmi_phy_power_off(struct phy *phy)
 {
 	struct mtk_hdmi_phy *hdmi_phy = phy_get_drvdata(phy);
 
+	HDMI_PHY_FUNC();
+
 	mtk_hdmi_phy_disable_tmds(hdmi_phy);
-	clk_disable_unprepare(hdmi_phy->txpll);
+	udelay(10);
+	if (__clk_is_enabled(hdmi_phy->txpll) == true)
+		clk_disable_unprepare(hdmi_phy->txpll);
 
 	return 0;
 }
@@ -1135,27 +1150,18 @@ static int mtk_hdmi_phy_get_all_clk(
 		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE,
 	};
 
-#if 1
 	for (i = 0; i < ARRAY_SIZE(mtk_hdmi_phy_clk_names); i++) {
 		hdmi_phy->clk[i] = of_clk_get_by_name(dev->of_node,
 			mtk_hdmi_phy_clk_names[i]);
 
-		if (IS_ERR(hdmi_phy->clk[i])) {
-			HDMI_PHY_LOG("hdmi_phy IS_ERR");
+		if (IS_ERR(hdmi_phy->clk[i]))
 			return PTR_ERR(hdmi_phy->clk[i]);
-		}
 	}
-
-	//can.zeng todo verify, enable all clks temporarily
-	for (i = 0; i < ARRAY_SIZE(mtk_hdmi_phy_clk_names); i++)
-		clk_prepare_enable(hdmi_phy->clk[i]);
-#endif
 
 	/* specify clock parent 26M for bring up */
 	hdmi_phy->clk_parent = XTAL26M;
 
-	//ref_clk_name = __clk_get_name(hdmi_phy->clk[MTK_HDMI_PHY_XTAL_SEL]);
-	ref_clk_name = "MTK_HDMI_PHY_XTAL_SEL";
+	ref_clk_name = __clk_get_name(hdmi_phy->clk[MTK_HDMI_PHY_XTAL_SEL]);
 
 /*acquire txpll 3 clk parent, can.zeng todo verify
  *	for (i = PLLGP1_PLLGP_2H_PLL2; i < TXPLL_CLK_PARENT_COUNT; i++) {
@@ -1264,7 +1270,7 @@ struct platform_driver mtk_hdmi_phy_driver = {
 	.probe = mtk_hdmi_phy_probe,
 	.remove = mtk_hdmi_phy_remove,
 	.driver = {
-		.name = "mtk-hdmi-phy",
+		.name = "mediatek-hdmi-phy",
 		.of_match_table = mtk_hdmi_phy_match,
 	},
 };

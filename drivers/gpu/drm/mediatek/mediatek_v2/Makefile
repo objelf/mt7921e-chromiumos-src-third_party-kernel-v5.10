@@ -75,11 +75,11 @@ subdir-ccflags-y += -Wno-error
 
 #obj-$(CONFIG_DRM_MEDIATEK) += mediatek-drm.o
 
-mediatek-drm-hdmi-objs := mtk_hdmi.o \
-			  mtk_hdmi_ddc.o \
-			  mtk_mt8195_hdmi_phy.o
+#mediatek-drm-hdmi-objs := mtk_hdmi.o \
+#			  mtk_hdmi_ddc.o \
+#			  mtk_mt8195_hdmi_phy.o
 
-obj-$(CONFIG_DRM_MEDIATEK_HDMI) += mediatek-drm-hdmi.o
+#obj-$(CONFIG_DRM_MEDIATEK_HDMI) += mediatek-drm-hdmi.o
 #obj-$(CONFIG_DRM_MEDIATEK_HDMI) += mediatek-drm-hdmi.o \
 #				  mtk_dpi.o \
 #				  mtk_lvds.o \

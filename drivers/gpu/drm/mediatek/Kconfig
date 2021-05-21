@@ -25,12 +25,28 @@ config DRM_MEDIATEK_HDMI
 	tristate "DRM HDMI Support for Mediatek SoCs"
 	depends on DRM_MEDIATEK
 	select SND_SOC_HDMI_CODEC if SND_SOC
-	select PHY_MTK_HDMI
 	select GENERIC_PHY
 	select CEC_CORE
 	select CEC_NOTIFIER
 	help
 	  DRM/KMS HDMI driver for Mediatek SoCs
+config DRM_MEDIATEK_HDMI_HDCP
+	tristate "DRM HDMI HDCP Support for Mediatek SoCs"
+	depends on DRM_MEDIATEK_HDMI
+	help
+	  DRM/KMS HDMI HDCP driver for Mediatek SoCs.
+	  Choose this option if you want to enable
+	  HDCP driver, and this config depends on
+	  DRM_MEDIATEK_HDMI.
+
+config DRM_MEDIATEK_HDMI_SUSPEND_LOW_POWER
+	tristate "DRM HDMI SUSPEND LOW POWER Support for Mediatek SoCs"
+	depends on DRM_MEDIATEK_HDMI
+	help
+	  DRM/KMS HDMI SUSPEND_LOW_POWER for Mediatek SoCs.
+	  Choose this option if you want to disable/enable
+	  clock and power domain when platform enter suspend,
+	  and this config depends on DRM_MEDIATEK_HDMI.
 
 config MTK_DPTX_SUPPORT
 	tristate "DRM DPTX Support for Mediatek SoCs"

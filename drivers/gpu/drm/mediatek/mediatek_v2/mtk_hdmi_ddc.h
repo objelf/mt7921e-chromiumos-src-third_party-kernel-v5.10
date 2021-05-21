@@ -15,50 +15,20 @@ struct mtk_hdmi_ddc {
 	void __iomem *regs;
 };
 
-enum SIF_BIT_T_HDMI {
-	SIF_8_BIT_HDMI,		/* /< [8 bits data address.] */
-	SIF_16_BIT_HDMI,	/* /< [16 bits data address.] */
-};
 
-enum SIF_BIT_T {
-	SIF_8_BIT,		/* /< [8 bits data address.] */
-	SIF_16_BIT,		/* /< [16 bits data address.] */
-};
+#define SIF1_CLOK 288		/* 26M/(v) = 100Khz */
+#define DDC2_CLOK 572		/* BIM=208M/(v*4) = 90Khz */
+#define DDC2_CLOK_EDID 832	/* BIM=208M/(v*4) = 62.5Khz */
+/* for HF1-55 */
 
-void DDC_WR_ONE(struct mtk_hdmi_ddc *ddc,
-	unsigned int addr_id, unsigned int offset_id,
-	unsigned char wr_data);
-
-unsigned char _DDCMRead_hdmi(struct mtk_hdmi_ddc *ddc,
-	unsigned char ucCurAddrMode, unsigned int u4ClkDiv,
-	unsigned char ucDev, unsigned int u4Addr,
-	enum SIF_BIT_T_HDMI ucAddrType,
-	unsigned char *pucValue, unsigned int u4Count);
-
-unsigned int DDCM_RanAddr_Write(struct mtk_hdmi_ddc *ddc,
-	unsigned int u4ClkDiv, unsigned char ucDev, unsigned int u4Addr,
-	enum SIF_BIT_T ucAddrType, const unsigned char *pucValue,
-	unsigned int u4Count);
-
-unsigned char DDCM_RanAddr_Read(struct mtk_hdmi_ddc *ddc,
-	unsigned int u4ClkDiv, unsigned char ucDev,
-	unsigned int u4Addr, enum SIF_BIT_T ucAddrType,
-	unsigned char *pucValue, unsigned int u4Count);
-
-unsigned int DDCM_CurAddr_Read(struct mtk_hdmi_ddc *ddc,
-	unsigned int u4ClkDiv, unsigned char ucDev,
-	unsigned char *pucValue, unsigned int u4Count);
-
-unsigned char vDDCRead(struct mtk_hdmi_ddc *ddc,
-	unsigned int u4ClkDiv, unsigned char ucDev,
-	unsigned int u4Addr, enum SIF_BIT_T_HDMI ucAddrType,
-	unsigned char *pucValue, unsigned int u4Count);
-
-extern unsigned char fgDDCDataRead(struct mtk_hdmi_ddc *ddc,
+unsigned char fgDDCDataRead(struct mtk_hdmi_ddc *ddc,
 	unsigned char bDevice, unsigned char bData_Addr,
 	unsigned char bDataCount, unsigned char *prData);
-extern unsigned char fgDDCDataWrite(struct mtk_hdmi_ddc *ddc,
+unsigned char fgDDCDataWrite(struct mtk_hdmi_ddc *ddc,
 	unsigned char bDevice, unsigned char bData_Addr,
 	unsigned char bDataCount, unsigned char *prData);
+bool hdmi_ddc_request(struct mtk_hdmi_ddc *ddc, unsigned char req);
+void hdmi_ddc_free(struct mtk_hdmi_ddc *ddc, unsigned char req);
+
 
 #endif /* _MTK_DDC_H */

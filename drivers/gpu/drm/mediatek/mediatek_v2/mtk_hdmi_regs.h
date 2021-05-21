@@ -1758,6 +1758,16 @@ enum HDMI_GEN_PACKET_HW_ENUM {
 	GEN_PKT_HW_NUM,
 };
 
+struct PACKET_HW_T {
+	enum HDMI_GEN_PACKET_HW_ENUM hw_num;
+	unsigned int addr_header;
+	unsigned int addr_pkt;
+	unsigned int addr_wr_en;
+	unsigned int mask_wr_en;
+	unsigned int addr_rep_en;
+	unsigned int mask_rep_en;
+};
+
 /****HDMI TX digital register end****/
 
 
@@ -2102,10 +2112,18 @@ enum HDMI_GEN_PACKET_HW_ENUM {
 #define OUTPUT_FORMAT_DDR_ENABLE (0x1 << 0)
 
 #define HDMITX_CONFIG 0x900
-
+/* HDMITX_CONFIG BIT(28) BIT(29) cannot be read, if read, always 0.
+ * if use mtk_hdmi_mask(), it will read the register fisrt,
+ * then write register. if want to set BIT(28) BIT(29) 1,
+ * every time write HDMITX_CONFIG shall set BIT(28) BIT(29) to 1.
+ */
 #define HDMITX_SW_RSTB BIT(31)
+#define HDMITX_SW_HPD BIT(29)
+#define HDMI_YUV420_MODE BIT(10)
 
 #define HDMITX_SW_RSTB_SHIFT (31)
+#define HDMITX_SW_HPD_SHIFT (29)
+#define HDMI_YUV420_MODE_SHIFT (10)
 
 #define HDMITX_MUX (0x1 << 0)
 

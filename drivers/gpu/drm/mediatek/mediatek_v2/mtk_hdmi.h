@@ -7,7 +7,6 @@
 #define _MTK_HDMI_CTRL_H
 
 #include <linux/hdmi.h>
-//#include <drm/drmP.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
@@ -17,16 +16,37 @@
 #include <linux/i2c.h>
 #include <sound/hdmi-codec.h>
 #include <linux/clk.h>
-#include <linux/regmap.h>
+#include <linux/mutex.h>
+#include "mtk_hdmi_hdcp.h"
+
+#define RGB444_8bit  BIT(0)
+#define RGB444_10bit BIT(1)
+#define RGB444_12bit BIT(2)
+#define RGB444_16bit BIT(3)
+#define YCBCR444_8bit  BIT(4)
+#define YCBCR444_10bit BIT(5)
+#define YCBCR444_12bit BIT(6)
+#define YCBCR444_16bit BIT(7)
+#define YCBCR422_8bit_NO_SUPPORT  BIT(8)
+#define YCBCR422_10bit_NO_SUPPORT BIT(9)
+#define YCBCR422_12bit BIT(10)
+#define YCBCR422_16bit_NO_SUPPORT BIT(11)
+#define YCBCR420_8bit  BIT(12)
+#define YCBCR420_10bit BIT(13)
+#define YCBCR420_12bit BIT(14)
+#define YCBCR420_16bit BIT(15)
 
 
 #define NCTS_BYTES	7
 
 enum mtk_hdmi_clk_id {
 	MTK_HDMI_CLK_HDMI_TXPLL,
+	MTK_HDMI_CLK_UNIVPLL_D6D4,
+	MTK_HDMI_CLK_MSDCPLL_D2,
+	MTK_HDMI_CLK_HDMI_APB_SEL,
+	MTK_HDMI_UNIVPLL_D4D8,
 	MTK_HDIM_HDCP_SEL,
 	MTK_HDMI_HDCP_24M_SEL,
-	MTK_HDMI_HD20_HDCP_C_SEL,
 	MTK_HDMI_VPP_SPLIT_HDMI,
 	MTK_HDMI_CLK_COUNT,
 };
@@ -132,26 +152,22 @@ struct hdmi_audio_param {
 	struct hdmi_codec_params codec_params;
 };
 
-enum HDMI_COLOR_DEPTH {
+enum hdmi_color_depth {
 	HDMI_8_BIT,
 	HDMI_10_BIT,
 	HDMI_12_BIT,
 	HDMI_16_BIT
 };
 
-enum HDMI_HDR_TYPE {
-	HDR_TYPE_SDR = 0,
-	HDR_TYPE_HDR10,
-	HDR_TYPE_DOLBY_VISION,
-	HDR_TYPE_PHILIPS_RESVERD,
-	HDR_TYPE_DOLBY_VISION_LOWLATENCY,
-	HDR_TYPE_HDR10PLUS_EMP,
-	HDR_TYPE_SAMSUNG_HDR10PLUS_VSIF,
-};
-
 struct mtk_hdmi_edid {
 	unsigned char edid[EDID_LENGTH * 4];
 	unsigned char blk_num;
+};
+
+enum HDMI_HPD_STATE {
+	HDMI_PLUG_OUT = 0,
+	HDMI_PLUG_IN_AND_SINK_POWER_ON,
+	HDMI_PLUG_IN_ONLY,
 };
 
 struct mtk_hdmi {
@@ -161,27 +177,59 @@ struct mtk_hdmi {
 	struct phy *phy;
 	struct mtk_hdmi_phy *hdmi_phy_base;
 	struct device *cec_dev;
+	struct cec_notifier *notifier;
 	struct i2c_adapter *ddc_adpt;
 	struct clk *clk[MTK_HDMI_CLK_COUNT];
 	struct drm_display_mode mode;
 	bool dvi_mode;
 	u32 max_hdisplay;
 	u32 max_vdisplay;
-	/* struct regmap *sys_regmap; */
-	/* unsigned int sys_offset; */
 	void __iomem *regs;
+	spinlock_t property_lock;
+	struct drm_property *hdmi_info_blob;
+	struct drm_property_blob *hdmi_info_blob_ptr;
+	struct drm_property *csp_depth_prop;
+	uint64_t support_csp_depth;
+	uint64_t set_csp_depth;
 	enum hdmi_colorspace csp;
+	enum hdmi_color_depth color_depth;
+	enum hdmi_colorimetry colorimtery;
+	enum hdmi_extended_colorimetry extended_colorimetry;
+	enum hdmi_quantization_range quantization_range;
+	enum hdmi_ycc_quantization_range ycc_quantization_range;
+	struct mtk_hdmi_edid raw_edid;
+
 	struct hdmi_audio_param aud_param;
 	bool audio_enable;
+	struct device *codec_dev;
+	hdmi_codec_plugged_cb plugged_cb;
+
 	bool powered;
 	bool enabled;
 	unsigned int hdmi_irq;
-	bool hpd;
-	enum HDMI_COLOR_DEPTH color_depth;
-	enum HDMI_HDR_TYPE hdr_type;
-	struct mtk_hdmi_edid raw_edid;
-	struct workqueue_struct *hpd_wq;
-	struct work_struct hpd_work;
+	enum HDMI_HPD_STATE hpd;
+	struct workqueue_struct *hdmi_wq;
+	struct delayed_work hpd_work;
+	struct delayed_work hdr10_delay_work;
+	struct delayed_work hdr10vsif_delay_work;
+	struct mutex hdr_mutex;
+
+#ifdef CONFIG_DRM_MEDIATEK_HDMI_HDCP
+	bool repeater_hdcp;
+	wait_queue_head_t hdcp_wq;
+	struct task_struct *hdcp_task;
+	struct timer_list hdcp_timer;
+	bool enable_hdcp;
+	bool hdcp_2x_support;
+	bool key_is_installed;
+	bool bin_is_loaded;
+	bool donwstream_is_repeater;
+	enum HDCP_CTRL_STATE_T hdcp_ctrl_state;
+#endif
+
+	bool hdmi_enabled;
+	bool power_clk_enabled;
+	bool irq_registered;
 };
 
 extern struct platform_driver mtk_cec_driver;
@@ -189,14 +237,85 @@ extern struct platform_driver mtk_hdmi_ddc_driver;
 extern struct platform_driver mtk_hdmi_phy_driver;
 
 extern struct mtk_hdmi *global_mtk_hdmi;
-extern void mtk_hdmi_disable_hdcp_encrypt(struct mtk_hdmi *hdmi);
-extern void mtk_hdmi_yuv420_downsample(struct mtk_hdmi *hdmi, bool enable);
-extern void mtk_hdmi_480p_576p_setting(struct mtk_hdmi *hdmi);
-extern void mtk_hdmi_write(struct mtk_hdmi *hdmi, u32 offset, u32 val);
-extern void mtk_hdmi_mask(struct mtk_hdmi *hdmi,
-	u32 offset, u32 val, u32 mask);
-extern bool mtk_hdmi_tmds_over_340M(struct mtk_hdmi *hdmi);
 
+u32 mtk_hdmi_read(struct mtk_hdmi *hdmi, u32 offset);
+void mtk_hdmi_write(struct mtk_hdmi *hdmi, u32 offset, u32 val);
+void mtk_hdmi_mask(struct mtk_hdmi *hdmi,
+	u32 offset, u32 val, u32 mask);
+void mtk_hdmi_clk_enable(struct mtk_hdmi *hdmi);
+void mtk_hdmi_clk_disable(struct mtk_hdmi *hdmi);
+void mtk_hdmi_AV_mute(struct mtk_hdmi *hdmi);
+void mtk_hdmi_AV_unmute(struct mtk_hdmi *hdmi);
+bool mtk_hdmi_tmds_over_340M(struct mtk_hdmi *hdmi);
 extern void mtk_dpi_pattern_en(bool enable);
+struct mtk_hdmi_ddc *hdmi_ddc_ctx_from_mtk_hdmi(struct mtk_hdmi *hdmi);
+void mtk_hdmi_colorspace_setting(struct mtk_hdmi *hdmi);
+int mtk_hdmi_setup_h14b_vsif(struct mtk_hdmi *hdmi, struct drm_display_mode *mode);
+int mtk_hdmi_setup_avi_infoframe(struct mtk_hdmi *hdmi, struct drm_display_mode *mode);
+void mtk_hdmi_audio_reset(struct mtk_hdmi *hdmi, bool rst);
+void mtk_hdmi_hw_send_aud_packet(struct mtk_hdmi *hdmi, bool enable);
+void mtk_hdmi_hw_vid_black(struct mtk_hdmi *hdmi, bool black);
+void mtk_hdmi_hw_aud_mute(struct mtk_hdmi *hdmi);
+void mtk_hdmi_hw_aud_unmute(struct mtk_hdmi *hdmi);
+void mtk_hdmi_handle_plugged_change(struct mtk_hdmi *hdmi, bool plugged);
+
+#ifdef CONFIG_DRM_MEDIATEK_HDMI
+struct mtk_hdmi_edid *mtk_hdmi_get_raw_edid(struct drm_bridge *bridge);
+unsigned int set_hdmi_colorspace_depth(struct drm_bridge *bridge, uint64_t colorspace_depth);
+unsigned int set_hdmi_colorimetry_range(struct drm_bridge *bridge,
+	enum hdmi_colorimetry colorimtery, enum hdmi_extended_colorimetry extended_colorimetry,
+	enum hdmi_quantization_range quantization_range,
+	enum hdmi_ycc_quantization_range ycc_quantization_range);
+unsigned int get_hdmi_colorspace_colorimetry(struct drm_bridge *bridge,
+	enum hdmi_colorspace *colorspace, enum hdmi_colorimetry *colorimtery,
+	enum hdmi_extended_colorimetry *extended_colorimetry,
+	enum hdmi_quantization_range *quantization_range,
+	enum hdmi_ycc_quantization_range *ycc_quantization_range);
+#else
+inline struct mtk_hdmi_edid *mtk_hdmi_get_raw_edid(struct drm_bridge *bridge)
+{
+	return NULL;
+}
+inline unsigned int set_hdmi_colorspace_depth(struct drm_bridge *bridge, uint64_t colorspace_depth)
+{
+	return 0;
+}
+inline unsigned int set_hdmi_colorimetry_range(struct drm_bridge *bridge,
+	enum hdmi_colorimetry colorimtery, enum hdmi_extended_colorimetry extended_colorimetry,
+	enum hdmi_quantization_range quantization_range,
+	enum hdmi_ycc_quantization_range ycc_quantization_range)
+{
+	return 0;
+}
+inline unsigned int get_hdmi_colorspace_colorimetry(struct drm_bridge *bridge,
+	enum hdmi_colorspace *colorspace, enum hdmi_colorimetry *colorimtery,
+	enum hdmi_extended_colorimetry *extended_colorimetry,
+	enum hdmi_quantization_range *quantization_range,
+	enum hdmi_ycc_quantization_range *ycc_quantization_range)
+{
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_DRM_MEDIATEK_HDMI_HDCP
+void hdmi_hdcp_start(void);
+void hdmi_hdcp_stop(void);
+#endif
+
+int mtk_hdmi_enable_disable(struct mtk_hdmi *hdmi, bool enable);
+int mtk_drm_ioctl_enable_hdmi(struct drm_device *dev, void *data, struct drm_file *file_priv);
+
+/* struct mtk_hdmi_info is used to propagate blob property to userspace */
+struct mtk_hdmi_info {
+	unsigned short edid_sink_colorimetry;
+	unsigned char edid_sink_rgb_color_bit;
+	unsigned char edid_sink_ycbcr_color_bit;
+	unsigned char ui1_sink_dc420_color_bit;
+	unsigned short edid_sink_max_tmds_clock;
+	unsigned short edid_sink_max_tmds_character_rate;
+	unsigned char edid_sink_support_dynamic_hdr;
+};
+
+int mtk_hdmi_update_hdmi_info_property(struct mtk_hdmi *hdmi);
 
 #endif /* _MTK_HDMI_CTRL_H */

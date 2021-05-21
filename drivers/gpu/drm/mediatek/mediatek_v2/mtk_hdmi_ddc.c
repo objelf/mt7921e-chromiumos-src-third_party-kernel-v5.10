@@ -16,10 +16,14 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
+#include <linux/semaphore.h>
 
 #include "mtk_hdmi_ddc.h"
 #include "mtk_hdmi_regs.h"
 #include "mtk_hdmi_hdcp.h"
+#include "mtk_hdmi_ca.h"
+#include "mtk_hdmi.h"
+#include "mtk_hdmi_edid.h"
 
 unsigned char mtk_ddc_log = 1;
 
@@ -34,35 +38,15 @@ unsigned char mtk_ddc_log = 1;
 		pr_info("[HDMI][DDC] %s\n", __func__); \
 	} while (0)
 
-#define EDID_BLOCK_LEN      128
-#define EDID_SIZE 512
+enum SIF_BIT_T_HDMI {
+	SIF_8_BIT_HDMI,		/* /< [8 bits data address.] */
+	SIF_16_BIT_HDMI,	/* /< [16 bits data address.] */
+};
 
-#define SIF1_CLOK 288		/* 26M/(v) = 100Khz */
-#define DDC2_CLOK 572		/* BIM=208M/(v*4) = 90Khz */
-#define DDC2_CLOK_EDID 832	/* BIM=208M/(v*4) = 62.5Khz */
-/* for HF1-55 */
-
-#define EDID_ID     0x50	/* 0xA0 */
-#define EDID_ID1    0x51	/* 0xA2 */
-
-#define EDID_ADDR_HEADER                      0x00
-#define EDID_ADDR_VERSION                     0x12
-#define EDID_ADDR_REVISION                    0x13
-#define EDID_IMAGE_HORIZONTAL_SIZE            0x15
-#define EDID_IMAGE_VERTICAL_SIZE              0x16
-#define EDID_ADDR_FEATURE_SUPPORT             0x18
-#define EDID_ADDR_TIMING_DSPR_1               0x36
-#define EDID_ADDR_TIMING_DSPR_2               0x48
-#define EDID_ADDR_MONITOR_DSPR_1              0x5A
-#define EDID_ADDR_MONITOR_DSPR_2              0x6C
-#define EDID_ADDR_EXT_BLOCK_FLAG              0x7E
-#define EDID_ADDR_EXTEND_BYTE3                0x03
-/* EDID address: 0x83 */
-/* for ID receiver if RGB, YCbCr 4:2:2 or 4:4:4 */
-/* Extension Block 1: */
-#define EXTEDID_ADDR_TAG                      0x00
-#define EXTEDID_ADDR_REVISION                 0x01
-#define EXTEDID_ADDR_OFST_TIME_DSPR           0x02
+enum SIF_BIT_T {
+	SIF_8_BIT,		/* /< [8 bits data address.] */
+	SIF_16_BIT,		/* /< [16 bits data address.] */
+};
 
 inline bool mtk_ddc_readbit(struct mtk_hdmi_ddc *ddc,
 	unsigned short reg, unsigned int offset)
@@ -90,6 +74,148 @@ inline void mtk_ddc_mask(struct mtk_hdmi_ddc *ddc,
 	tmp = readl(ddc->regs + reg) & ~mask;
 	tmp |= (val & mask);
 	writel(tmp, ddc->regs + reg);
+}
+
+DEFINE_SEMAPHORE(hdcp_ddc_mutex);
+static unsigned int ddc_count;
+/* 1: hdmi reset, 2: risc DDC, 3: hdcp2.x reset, 4: requset DDC */
+bool hdmi_ddc_request(struct mtk_hdmi_ddc *ddc, unsigned char req)
+{
+#ifdef CONFIG_DRM_MEDIATEK_HDMI_HDCP
+	unsigned int i;
+#endif
+
+	if (down_interruptible(&hdcp_ddc_mutex)) {
+		HDMI_DDC_LOG(
+		"can't get semaphore in for boot time\n");
+		return true;
+	}
+
+	ddc_count++;
+
+	if (req == 1)
+		HDMI_DDC_LOG(">HDMI reset request DDC, %d\n", ddc_count);
+	else if (req == 3)
+		HDMI_DDC_LOG(">HDCP2.x rst request DDC, %d\n", ddc_count);
+	else if (req == 4)
+		HDMI_DDC_LOG(">request DDC, %d\n", ddc_count);
+
+#ifdef CONFIG_DRM_MEDIATEK_HDMI_HDCP
+	/* if hdcp2.x enable and req is hdcp1.x, then return */
+	if (req == 2)
+		return true;
+	if (req == 5) {
+		/* reset DDC */
+		mtk_ddc_mask(ddc, TOP_MISC_CTLR, DISABLE_IDLE_DDC_RESET,
+			DISABLE_IDLE_DDC_RESET);
+#ifdef CONFIG_OPTEE
+		vCaHDMIWriteHDCPRST(RISC_CLK_DDC_RST, RISC_CLK_DDC_RST);
+		udelay(1);
+		vCaHDMIWriteHDCPRST(0, RISC_CLK_DDC_RST);
+#endif
+		mtk_ddc_mask(ddc, TOP_MISC_CTLR, 0, DISABLE_IDLE_DDC_RESET);
+
+		/* send stop cmd */
+		if (mtk_ddc_read(ddc, HDCP2X_DDCM_STATUS) & DDC_I2C_BUS_LOW) {
+			mtk_ddc_mask(ddc, DDC_CTRL, (CLOCK_SCL <<
+				DDC_CMD_SHIFT), DDC_CMD);
+			udelay(250);
+		}
+		return true;
+	}
+
+	if ((mtk_ddc_read(ddc, HDCP2X_CTRL_0) & HDCP2X_EN) == 0)
+		return true;
+
+	/* step1 : wait hdcp2.x auth finish */
+	if (req == 4) {
+		for (i = 0; i < 1000; i++) {
+			if (fgHDMIHdcp2Auth() == false)
+				break;
+			usleep_range(1000, 1500);
+		}
+		HDMI_DDC_LOG("hdcp2.x stop, %d, %d\n", i,
+			bHDMIHDCP2Err());
+	} else {
+		HDMI_DDC_LOG("req %d, hdcp2.x state %d\n",
+			req, bHDMIHDCP2Err());
+	}
+#endif
+
+	/* step2 : stop polling */
+	mtk_ddc_mask(ddc, HDCP2X_POL_CTRL,
+	HDCP2X_DIS_POLL_EN, HDCP2X_DIS_POLL_EN);
+
+#ifdef CONFIG_DRM_MEDIATEK_HDMI_HDCP
+	/* step4 : stop hdcp2.x */
+	mtk_ddc_mask(ddc, HDCP2X_GP_IN, 0xdb << HDCP2X_GP_IN3_SHIFT,
+	HDCP2X_GP_IN3);
+
+	/* step5 : wait hdcp2.x msg finish */
+	for (i = 0; i < 100; i++) {
+		if ((mtk_ddc_read(ddc, HPD_DDC_STATUS) & DDC_I2C_IN_PROG) == 0) {
+			mtk_ddc_mask(ddc, HDCP2X_CTRL_0, 0, HDCP2X_EN);
+			break;
+		}
+		usleep_range(1000, 1050);
+	}
+
+	if (i == 100) {
+		HDMI_DDC_LOG("DDC error, %d\n", bHDMIHDCP2Err());
+
+		/* reset DDC */
+		mtk_ddc_mask(ddc, TOP_MISC_CTLR, DISABLE_IDLE_DDC_RESET,
+			DISABLE_IDLE_DDC_RESET);
+#ifdef CONFIG_OPTEE
+		vCaHDMIWriteHDCPRST(RISC_CLK_DDC_RST, RISC_CLK_DDC_RST);
+		udelay(1);
+		vCaHDMIWriteHDCPRST(0, RISC_CLK_DDC_RST);
+#endif
+		mtk_ddc_mask(ddc, TOP_MISC_CTLR, 0, DISABLE_IDLE_DDC_RESET);
+
+		/* send stop cmd */
+		if (mtk_ddc_read(ddc, HDCP2X_DDCM_STATUS) & DDC_I2C_BUS_LOW) {
+			mtk_ddc_mask(ddc, DDC_CTRL,
+				(CLOCK_SCL << DDC_CMD_SHIFT), DDC_CMD);
+			udelay(250);
+		}
+	} else if (i > 1) {
+		HDMI_DDC_LOG("DDC stop, %d, %d\n", i, bHDMIHDCP2Err());
+	}
+
+	/* step6 : disable HDCP2.x */
+	mtk_ddc_mask(ddc, HDCP2X_CTRL_0, 0, HDCP2X_EN);
+
+	/* step7 : reset HDCP2.x */
+#ifdef CONFIG_OPTEE
+	/* SOFT_HDCP_RST, SOFT_HDCP_RST); */
+	vCaHDMIWriteHDCPRST(SOFT_HDCP_RST, SOFT_HDCP_RST);
+	/* SOFT_HDCP_CORE_RST, SOFT_HDCP_CORE_RST); */
+	vCaHDMIWriteHDCPRST(SOFT_HDCP_CORE_RST, SOFT_HDCP_CORE_RST);
+	udelay(1);
+	/* SOFT_HDCP_NOR, SOFT_HDCP_RST); */
+	vCaHDMIWriteHDCPRST(SOFT_HDCP_NOR, SOFT_HDCP_RST);
+	/* SOFT_HDCP_CORE_NOR, SOFT_HDCP_CORE_RST); */
+	vCaHDMIWriteHDCPRST(SOFT_HDCP_CORE_NOR, SOFT_HDCP_CORE_RST);
+#endif
+
+	/* step8 : free hdcp2.x */
+	mtk_ddc_mask(ddc, HDCP2X_GP_IN, 0 << HDCP2X_GP_IN3_SHIFT, HDCP2X_GP_IN3);
+#endif
+
+	return true;
+}
+
+void hdmi_ddc_free(struct mtk_hdmi_ddc *ddc, unsigned char req)
+{
+	up(&hdcp_ddc_mutex);
+
+	if (req == 1)
+		HDMI_DDC_LOG("HDMI reset free DDC, %d\n", ddc_count);
+	else if (req == 3)
+		HDMI_DDC_LOG("HDCP2.x rst free DDC, %d\n", ddc_count);
+	else if (req == 4)
+		HDMI_DDC_LOG("free DDC, %d\n", ddc_count);
 }
 
 static unsigned char _DDCMRead(struct mtk_hdmi_ddc *ddc,
@@ -180,10 +306,10 @@ void DDC_WR_ONE(struct mtk_hdmi_ddc *ddc,
 	for (i = 0; i < 5; i++)
 		udelay(200);
 
-	if ((mtk_ddc_read(ddc, HPD_DDC_STATUS) &
-		DDC_I2C_IN_PROG) == 0)
-		HDMI_DDC_LOG("[HDMI][DDC] error: time out\n");
-
+/*	if ((mtk_ddc_read(ddc, HPD_DDC_STATUS) &
+ *		DDC_I2C_IN_PROG) == 0)
+ *		HDMI_DDC_LOG("[HDMI][DDC] error: time out\n");
+ */
 	if ((mtk_ddc_read(ddc, HDCP2X_DDCM_STATUS) &
 		(DDC_I2C_NO_ACK | DDC_I2C_BUS_LOW))) {
 		if ((mtk_ddc_read(ddc, DDC_CTRL) & 0xFF) == (RX_ID << 1))
@@ -228,8 +354,8 @@ unsigned int DDCM_RanAddr_Write(struct mtk_hdmi_ddc *ddc,
 	enum SIF_BIT_T ucAddrType, const unsigned char *pucValue,
 	unsigned int u4Count)
 {
-	unsigned int u4WriteCount1;
-	unsigned char ucReturnVaule;
+	unsigned int u4WriteCount1 = 0;
+	unsigned char ucReturnVaule = 0;
 
 	if ((pucValue == NULL) ||
 	    (u4Count == 0) ||
@@ -275,8 +401,8 @@ unsigned char DDCM_RanAddr_Read(struct mtk_hdmi_ddc *ddc,
 	unsigned int u4Addr, enum SIF_BIT_T ucAddrType,
 	unsigned char *pucValue, unsigned int u4Count)
 {
-	unsigned int u4ReadCount;
-	unsigned char ucReturnVaule;
+	unsigned int u4ReadCount = 0;
+	unsigned char ucReturnVaule = 0;
 
 	HDMI_DDC_FUNC();
 	if ((pucValue == NULL) ||
@@ -569,8 +695,8 @@ unsigned char vDDCRead(struct mtk_hdmi_ddc *ddc,
 	unsigned int u4Addr, enum SIF_BIT_T_HDMI ucAddrType,
 	unsigned char *pucValue, unsigned int u4Count)
 {
-	unsigned int u4ReadCount;
-	unsigned char ucReturnVaule;
+	unsigned int u4ReadCount = 0;
+	unsigned char ucReturnVaule = 0;
 
 
 	if ((pucValue == NULL) ||
@@ -600,7 +726,7 @@ unsigned char fgDDCDataRead(struct mtk_hdmi_ddc *ddc,
 {
 	bool flag;
 
-	HDMI_DDC_FUNC();
+	//HDMI_DDC_FUNC();
 
 	while (fgDDCBusy == 1) {
 		HDMI_DDC_LOG("[HDMI][DDC]DDC read busy\n");
@@ -608,7 +734,7 @@ unsigned char fgDDCDataRead(struct mtk_hdmi_ddc *ddc,
 	}
 	fgDDCBusy = 1;
 
-	//hdmi_ddc_request(2); can.zeng todo check
+	hdmi_ddc_request(ddc, 2);
 	if (vDDCRead(ddc, DDC2_CLOK, (unsigned char)bDevice,
 		(unsigned int)bData_Addr, SIF_8_BIT_HDMI,
 		(unsigned char *)prData, (unsigned int)bDataCount)
@@ -619,7 +745,7 @@ unsigned char fgDDCDataRead(struct mtk_hdmi_ddc *ddc,
 		fgDDCBusy = 0;
 		flag = false;
 }
-	//hdmi_ddc_free(2);  can.zeng todo check
+	hdmi_ddc_free(ddc, 2);
 
 	return flag;
 }
@@ -637,10 +763,10 @@ unsigned char fgDDCDataWrite(struct mtk_hdmi_ddc *ddc,
 	}
 	fgDDCBusy = 1;
 
-	//hdmi_ddc_request(2);  can.zeng todo check
+	hdmi_ddc_request(ddc, 2);
 	for (i = 0; i < bDataCount; i++)
 		DDC_WR_ONE(ddc, bDevice, bData_Addr + i, *(prData + i));
-	//hdmi_ddc_free(2);  can.zeng todo check
+	hdmi_ddc_free(ddc, 2);
 
 	fgDDCBusy = 0;
 	return 1;

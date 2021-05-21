@@ -7,25 +7,11 @@
 #ifndef __hdmihdcp_h__
 #define __hdmihdcp_h__
 
+#include <linux/timer.h>
+
 enum HDMI_HDCP_VERSION {
 	HDMI_HDCP_1_x,
 	HDMI_HDCP_2_x
-};
-
-enum HDMI_NFY_PLUG_STATE_T {
-	HDMI_PLUG_OUT = 0,
-	HDMI_PLUG_IN_AND_SINK_POWER_ON,
-	HDMI_PLUG_IN_ONLY,
-	HDMI_PLUG_IN_EDID,
-	HDMI_PLUG_IN_CEC,
-	HDMI_PLUG_IN_POWER_EDID,
-	HDMI_PLUG_OUT_POWEROFF
-};
-
-enum HDMI_NFY_EDID_STATE_T {
-	HDMI_EDID_NOT_READY = 0,
-	HDMI_EDID_IS_READY,
-	HDMI_EDID_IS_ERROR
 };
 
 struct HDMI_HDCP_BKSV_INFO {
@@ -88,32 +74,6 @@ enum HDMI_HDCP_KEY_T {
 	INTERNAL_ENCRYPT_KEY
 };
 
-enum HDMI_SHARE_INFO_TYPE_T {
-	SI_EDID_VSDB_EXIST = 0,
-	SI_HDMI_RECEIVER_STATUS,
-	SI_HDMI_PORD_OFF_PLUG_ONLY,
-	SI_EDID_EXT_BLOCK_NO,
-	SI_EDID_PARSING_RESULT,
-	SI_HDMI_SUPPORTS_AI,
-	SI_HDMI_HDCP_RESULT,
-	SI_REPEATER_DEVICE_COUNT,
-	SI_HDMI_CEC_LA,
-	SI_HDMI_CEC_ACTIVE_SOURCE,
-	SI_HDMI_CEC_PROCESS,
-	SI_HDMI_CEC_PARA0,
-	SI_HDMI_CEC_PARA1,
-	SI_HDMI_CEC_PARA2,
-	SI_HDMI_NO_HDCP_TEST,
-	SI_HDMI_SRC_CONTROL,
-	SI_A_CODE_MODE,
-	SI_EDID_AUDIO_CAPABILITY,
-	SI_HDMI_AUDIO_INPUT_SOURCE,
-	SI_HDMI_AUDIO_CH_NUM,
-	SI_HDMI_DVD_AUDIO_PROHIBIT,
-	SI_DVD_HDCP_REVOCATION_RESULT
-};
-#define MAX_HDMI_SHAREINFO  64
-
 /* Notice: there are three device ID for SiI9993 (Receiver) */
 #define RX_ID       0x3A	/* Max'0308'04, 0x74 */
 /* (2.2) Define the desired register address of receiver */
@@ -159,7 +119,6 @@ enum HDMI_SHARE_INFO_TYPE_T {
 
 /* (4) Define the counter for Ri register byte */
 #define HDCP_RI_COUNT                 2
-
 
 #define HDCP_WAIT_5MS_TIMEOUT          5	/* 5 ms, */
 #define HDCP_WAIT_10MS_TIMEOUT          10	/* 10 ms, */
@@ -228,5 +187,27 @@ enum HDMI_SHARE_INFO_TYPE_T {
 #define NOT_REVOCATION_KEY     (1<<1)
 #define REVOCATION_IS_CHK      (1<<2)
 
+#define HDCPKEY_LENGTH_DRM 512
+
+#ifdef CONFIG_DRM_MEDIATEK_HDMI_HDCP
+bool fgIsHDCPCtrlTimeOut(enum HDCP_CTRL_STATE_T e_hdcp_state);
+bool fgHDMIHdcp2Auth(void);
+unsigned int bHDMIHDCP2Err(void);
+void hdcp2x_load_rom_ram(void);
+void hdcp_service(enum HDCP_CTRL_STATE_T e_hdcp_state);
+void vSetHDCPState(enum HDCP_CTRL_STATE_T e_state);
+void vHDCPInitAuth(void);
+extern atomic_t hdmi_hdcp_event;
+void vReadHdcpVersion(void);
+void vHDCPReset(void);
+extern int hdcp_delay_time;
+
+#ifdef CONFIG_MTK_HDMI_RX
+#include "mtk_hdmi_rpt.h"
+extern struct MTK_HDMIRX *hdmirxhandle;
+extern struct device *hdmirxdev;
+#endif
+
+#endif
 
 #endif

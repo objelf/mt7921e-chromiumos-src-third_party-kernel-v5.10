@@ -24,9 +24,16 @@ mediatek-drm-y := mtk_disp_ccorr.o \
 
 obj-$(CONFIG_DRM_MEDIATEK) += mediatek-drm.o
 
-mediatek-drm-hdmi-objs := mtk_cec.o \
-			  mtk_hdmi.o \
-			  mtk_hdmi_ddc.o
+mediatek-drm-hdmi-objs := ./mediatek_v2/mtk_hdmi.o \
+			 ./mediatek_v2/mtk_hdmi_ddc.o \
+			 ./mediatek_v2/mtk_mt8195_hdmi_phy.o \
+			 ./mediatek_v2/mtk_hdmi_hdr.o \
+			 ./mediatek_v2/mtk_hdmi_debug.o \
+			 ./mediatek_v2/mtk_hdmi_edid.o \
+
+ifeq ($(CONFIG_DRM_MEDIATEK_HDMI_HDCP),y)
+mediatek-drm-hdmi-objs += ./mediatek_v2/mtk_hdmi_hdcp.o
+endif
 
 obj-$(CONFIG_DRM_MEDIATEK_HDMI) += mediatek-drm-hdmi.o
 
