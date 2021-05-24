@@ -40,6 +40,13 @@
 #define FAKE_DE_LEVEN			BIT(21)
 #define FAKE_DE_RODD			BIT(22)
 #define FAKE_DE_REVEN			BIT(23)
+/* 8195 add start */
+#define OUTPUT_1T1P_EN			BIT(24)
+#define INPUT_2P_EN			BIT(25)
+#define EXT_VSYNC_EN			BIT(26)
+#define RGB565_EN			BIT(27)
+#define RGB880_EN			BIT(28)
+/* 8195 add end */
 
 #define DPI_OUTPUT_SETTING	0x14
 #define CH_SWAP				0
@@ -215,6 +222,41 @@
 #define ESAV_CODE2			(0xFFF << 0)
 #define ESAV_CODE3_MSB			BIT(16)
 
-#define EDGE_SEL_EN			BIT(5)
+#define DPI_MATRIX_SET	0xB4
+#define INT_MATRIX_SEL			BIT(0)
+#define INT_MATRIX_SEL_MASK		(0x1F << 0)
+#define RGB_TO_JPEG			0x00
+#define RGB_TO_FULL709			0x01
+#define RGB_TO_BT601			0x02
+#define RGB_TO_BT709			0x03
+#define JPEG_TO_RGB			0x04
+#define FULL709_TO_RGB			0x05
+#define BT601_TO_RGB			0x06
+#define BT709_TO_RGB			0x07
+#define JPEG_TO_BT601			0x08
+#define JPEG_TO_BT709			0x09
+#define BT601_TO_JPEG			0xA
+#define BT709_TO_JPEG			0xB
+#define BT709_TO_BT601			0xC
+#define BT601_TO_BT709			0xD
+#define JPEG_TO_CERGB			0x14
+#define FULL709_TO_CERGB		0x15
+#define BT601_TO_CERGB			0x16
+#define BT709_TO_CERGB			0x17
+#define RGB_TO_CERGB			0x1C
+#define MATRIX_BIT			BIT(8)
+#define EXT_MATRIX_EN			BIT(12)
+
+#define DPI_H_FRE_CON		0xE0
 #define H_FRE_2N			BIT(25)
+
+/* 8195 add start */
+#define DPI_EXT_VSYNC		0xF08
+#define EXT_VFP_LIMIT			BIT(0)
+#define EXT_VFP_LIMIT_MASK		(0x1FFF << 0)
+/* 8195 add end */
+
+#define VDOSYS1_DUMMY0		0x400
+#define DPI_ON				(0x1 << 0)
+
 #endif /* __MTK_DPI_REGS_H */

@@ -14,6 +14,8 @@
 #include <linux/of_graph.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
+#include <linux/regmap.h>
+#include <linux/mfd/syscon.h>
 #include <linux/types.h>
 
 #include <video/videomode.h>
@@ -28,6 +30,7 @@
 #include "mtk_disp_drv.h"
 #include "mtk_dpi_regs.h"
 #include "mtk_drm_ddp_comp.h"
+#include "mediatek_v2/mtk_hdmi.h"
 
 enum mtk_dpi_out_bit_num {
 	MTK_DPI_OUT_BIT_NUM_8BITS,
@@ -53,6 +56,17 @@ enum mtk_dpi_out_channel_swap {
 	MTK_DPI_OUT_CHANNEL_SWAP_BGR
 };
 
+enum mtk_dpi_internal_matrix {
+	MTK_DPI_INT_MATRIX_COLOR_FORMAT_RGB, /* full-range sRGB */
+	MTK_DPI_INT_MATRIX_COLOR_FORMAT_JPEG, /* full-range BT601 */
+	MTK_DPI_INT_MATRIX_COLOR_FORMAT_FULL709, /* full-range BT709 */
+	MTK_DPI_INT_MATRIX_COLOR_FORMAT_BT601, /* limit-range BT601 */
+	MTK_DPI_INT_MATRIX_COLOR_FORMAT_BT709, /* limit-range BT709 */
+	MTK_DPI_INT_MATRIX_COLOR_FORMAT_2020LIMITED,
+	MTK_DPI_INT_MATRIX_COLOR_FORMAT_2020FULL,
+	MTK_DPI_INT_MATRIX_COLOR_FORMAT_CERGB /* limit-range sRGB */
+};
+
 enum mtk_dpi_out_color_format {
 	MTK_DPI_COLOR_FORMAT_RGB,
 	MTK_DPI_COLOR_FORMAT_RGB_FULL,
@@ -69,6 +83,8 @@ struct mtk_dpi {
 	struct drm_bridge *next_bridge;
 	struct drm_connector *connector;
 	void __iomem *regs;
+	struct regmap *vdosys1_regmap;
+	unsigned int vdosys1_offset;
 	struct device *dev;
 	struct clk *engine_clk;
 	struct clk *pixel_clk;
@@ -80,6 +96,9 @@ struct mtk_dpi {
 	enum mtk_dpi_out_yc_map yc_map;
 	enum mtk_dpi_out_bit_num bit_num;
 	enum mtk_dpi_out_channel_swap channel_swap;
+	enum mtk_dpi_internal_matrix in_format;
+	enum mtk_dpi_internal_matrix out_format;
+	bool bypass_matrix;
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *pins_gpio;
 	struct pinctrl_state *pins_dpi;
@@ -127,6 +146,7 @@ struct mtk_dpi_conf {
 	u32 num_output_fmts;
 };
 
+struct mtk_dpi *mtk_global_dpi;
 static void mtk_dpi_mask(struct mtk_dpi *dpi, u32 offset, u32 val, u32 mask)
 {
 	u32 tmp = readl(dpi->regs + offset) & ~mask;
@@ -227,6 +247,16 @@ static void mtk_dpi_config_3d(struct mtk_dpi *dpi, bool en_3d)
 static void mtk_dpi_config_interface(struct mtk_dpi *dpi, bool inter)
 {
 	mtk_dpi_mask(dpi, DPI_CON, inter ? INTL_EN : 0, INTL_EN);
+}
+
+static void mtk_dpi_config_input_2p(struct mtk_dpi *dpi, bool input_2p)
+{
+	mtk_dpi_mask(dpi, DPI_CON, input_2p ? INPUT_2P_EN : 0, INPUT_2P_EN);
+}
+
+static void mtk_dpi_config_output_1t1p(struct mtk_dpi *dpi, bool output_1t1p)
+{
+	mtk_dpi_mask(dpi, DPI_CON, output_1t1p ? OUTPUT_1T1P_EN : 0, OUTPUT_1T1P_EN);
 }
 
 static void mtk_dpi_config_fb_size(struct mtk_dpi *dpi, u32 width, u32 height)
@@ -355,10 +385,25 @@ static void mtk_dpi_config_2n_h_fre(struct mtk_dpi *dpi)
 	mtk_dpi_mask(dpi, dpi->conf->reg_h_fre_con, H_FRE_2N, H_FRE_2N);
 }
 
+void mtk_dpi_pattern_en(bool enable)
+{
+	struct mtk_dpi *dpi;
+
+	if (mtk_global_dpi == NULL)
+		return;
+
+	dpi = mtk_global_dpi;
+	if (enable == true)
+		mtk_dpi_mask(dpi, 0xf00, 0x41, 0xffffffff);
+	else
+		mtk_dpi_mask(dpi, 0xf00, 0x0, 0xffffffff);
+}
+EXPORT_SYMBOL(mtk_dpi_pattern_en);
+
 static void mtk_dpi_config_disable_edge(struct mtk_dpi *dpi)
 {
 	if (dpi->conf->edge_sel_en)
-		mtk_dpi_mask(dpi, dpi->conf->reg_h_fre_con, 0, EDGE_SEL_EN);
+		mtk_dpi_mask(dpi, dpi->conf->reg_h_fre_con, 0, EDGE_SEL);
 }
 
 static void mtk_dpi_config_color_format(struct mtk_dpi *dpi,
@@ -384,19 +429,207 @@ static void mtk_dpi_config_color_format(struct mtk_dpi *dpi,
 	}
 }
 
-static void mtk_dpi_dual_edge(struct mtk_dpi *dpi)
+static void mtk_dpi_get_output_format(struct mtk_dpi *dpi)
 {
-	if ((dpi->output_fmt == MEDIA_BUS_FMT_RGB888_2X12_LE) ||
-	    (dpi->output_fmt == MEDIA_BUS_FMT_RGB888_2X12_BE)) {
-		mtk_dpi_mask(dpi, DPI_DDR_SETTING, DDR_EN | DDR_4PHASE,
-			     DDR_EN | DDR_4PHASE);
-		mtk_dpi_mask(dpi, DPI_OUTPUT_SETTING,
-			     dpi->output_fmt == MEDIA_BUS_FMT_RGB888_2X12_LE ?
-			     EDGE_SEL : 0, EDGE_SEL);
-	} else {
-		mtk_dpi_mask(dpi, DPI_DDR_SETTING, DDR_EN | DDR_4PHASE, 0);
+	enum hdmi_colorspace colorspace;
+	enum hdmi_colorimetry colorimtery;
+	enum hdmi_extended_colorimetry extended_colorimetry;
+	enum hdmi_quantization_range quantization_range;
+	enum hdmi_ycc_quantization_range ycc_quantization_range;
+
+	pr_notice("%s\n", __func__);
+
+#if 0
+	if (dpi->encoder.bridge == NULL) {
+		pr_notice("ERROR: %s: cannot get bridge\n", __func__);
+		return;
 	}
+#endif
+
+	if (dpi->bypass_matrix != true) {
+		get_hdmi_colorspace_colorimetry(&dpi->bridge,
+			&colorspace, &colorimtery, &extended_colorimetry,
+			&quantization_range, &ycc_quantization_range);
+
+		if (colorspace == HDMI_COLORSPACE_RGB) {
+			if ((quantization_range == HDMI_QUANTIZATION_RANGE_DEFAULT) ||
+				(quantization_range == HDMI_QUANTIZATION_RANGE_LIMITED)) {
+				dpi->out_format = MTK_DPI_INT_MATRIX_COLOR_FORMAT_CERGB;
+				//limited RGB
+			} else if (quantization_range == HDMI_QUANTIZATION_RANGE_FULL) {
+				dpi->out_format = MTK_DPI_INT_MATRIX_COLOR_FORMAT_RGB;
+				//full RGB
+			} else {
+				pr_notice("ERROR: %s: unknown RGB quantization\n", __func__);
+				dpi->out_format = MTK_DPI_INT_MATRIX_COLOR_FORMAT_CERGB;
+			}
+		} else if ((colorspace == HDMI_COLORSPACE_YUV422) ||
+			(colorspace == HDMI_COLORSPACE_YUV444) ||
+			(colorspace == HDMI_COLORSPACE_YUV420)) {
+			if (colorimtery == HDMI_COLORIMETRY_ITU_601) {
+				if (ycc_quantization_range == HDMI_YCC_QUANTIZATION_RANGE_LIMITED)
+					dpi->out_format = MTK_DPI_INT_MATRIX_COLOR_FORMAT_BT601;
+				else
+					dpi->out_format = MTK_DPI_INT_MATRIX_COLOR_FORMAT_JPEG;
+			} else if (colorimtery == HDMI_COLORIMETRY_ITU_709) {
+				if (ycc_quantization_range == HDMI_YCC_QUANTIZATION_RANGE_LIMITED)
+					dpi->out_format = MTK_DPI_INT_MATRIX_COLOR_FORMAT_BT709;
+				else
+					dpi->out_format = MTK_DPI_INT_MATRIX_COLOR_FORMAT_FULL709;
+			} else if ((colorimtery == HDMI_COLORIMETRY_EXTENDED) &&
+				(extended_colorimetry == HDMI_EXTENDED_COLORIMETRY_BT2020)) {
+				if (ycc_quantization_range == HDMI_YCC_QUANTIZATION_RANGE_LIMITED)
+					dpi->out_format =
+					MTK_DPI_INT_MATRIX_COLOR_FORMAT_2020LIMITED;
+				else
+					dpi->out_format = MTK_DPI_INT_MATRIX_COLOR_FORMAT_2020FULL;
+			} else {
+				pr_notice("ERROR: %s: un-supported Colorimetry\n", __func__);
+				dpi->out_format = MTK_DPI_INT_MATRIX_COLOR_FORMAT_BT601;
+			}
+
+			if (colorspace == HDMI_COLORSPACE_YUV422)
+				mtk_dpi_config_yuv422_enable(dpi, true);
+		} else {
+			pr_notice("ERROR: %s: unknown ColorSpace\n", __func__);
+			dpi->out_format = MTK_DPI_INT_MATRIX_COLOR_FORMAT_CERGB;
+		}
+	}
+
+	return;
 }
+
+static void mtk_dpi_internal_matrix_sel(struct mtk_dpi *dpi)
+{
+	u32 matrix_sel = 0x0;
+
+	return;
+
+	pr_notice("%s+\n", __func__);
+
+	if (dpi->bypass_matrix) {
+		mtk_dpi_config_csc_enable(dpi, false);
+		pr_notice("HDR mode, disable matrix_en\n");
+	} else {
+		pr_notice("Not HDR mode, in_format=%d, out_format=%d\n",
+			dpi->in_format, dpi->out_format);
+		if ((dpi->in_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_RGB) &&
+		(dpi->out_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_JPEG)) {
+			/* MTX_RGB_TO_JPEG: full-range sRGB to full-range BT601 */
+			matrix_sel = 0x0;
+		} else if ((dpi->in_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_RGB) &&
+		(dpi->out_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_FULL709)) {
+			/* MTX_RGB_TO_FULL709: full-range sRGB to full-range BT709 */
+			matrix_sel = 0x1;
+		} else if ((dpi->in_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_RGB) &&
+		(dpi->out_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_BT601)) {
+			/* MTX_RGB_TO_BT601: full-range sRGB to limit-range BT601 */
+			matrix_sel = 0x2;
+		} else if ((dpi->in_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_RGB) &&
+		(dpi->out_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_BT709)) {
+			/* MTX_RGB_TO_BT709: full-range sRGB to limit-range BT709 */
+			matrix_sel = 0x3;
+		} else if ((dpi->in_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_JPEG) &&
+		(dpi->out_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_RGB)) {
+			/* MTX_JPEG_TO_RGB: full-range BT601 to full-range sRGB */
+			matrix_sel = 0x4;
+		} else if ((dpi->in_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_FULL709) &&
+		(dpi->out_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_RGB)) {
+			/* MTX_FULL709_TO_RGB: full-range BT709 to full-range sRGB */
+			matrix_sel = 0x5;
+		} else if ((dpi->in_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_BT601) &&
+		(dpi->out_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_RGB)) {
+			/* MTX_BT601_TO_RGB: limit-range BT601 to full-range sRGB */
+			matrix_sel = 0x6;
+		} else if ((dpi->in_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_BT709) &&
+		(dpi->out_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_RGB)) {
+			/* MTX_BT709_TO_RGB: limit-range BT709 to full-range sRGB */
+			matrix_sel = 0x7;
+		} else if ((dpi->in_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_JPEG) &&
+		(dpi->out_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_BT601)) {
+			/* MTX_JPEG_TO_BT601: full-range BT601 to limit-range BT601 */
+			matrix_sel = 0x8;
+		} else if ((dpi->in_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_JPEG) &&
+		(dpi->out_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_BT709)) {
+			/* MTX_JPEG_TO_BT709: full-range BT601 to limit-range BT709 */
+			matrix_sel = 0x9;
+		} else if ((dpi->in_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_BT601) &&
+		(dpi->out_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_JPEG)) {
+			/* MTX_BT601_TO_JPEG: limit-range BT601 to full-range BT601 */
+			matrix_sel = 0xA;
+		} else if ((dpi->in_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_BT709) &&
+		(dpi->out_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_JPEG)) {
+			/* MTX_BT709_TO_JPEG: limit-range BT709 to full-range BT601 */
+			matrix_sel = 0xB;
+		} else if ((dpi->in_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_BT709) &&
+		(dpi->out_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_BT601)) {
+			/* MTX_BT709_TO_BT601: limit-range BT709 to limit-range BT601 */
+			matrix_sel = 0xC;
+		} else if ((dpi->in_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_BT601) &&
+		(dpi->out_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_BT709)) {
+			/* MTX_BT601_TO_BT709: limit-range BT601 to limit-range BT709 */
+			matrix_sel = 0xD;
+		} else if ((dpi->in_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_RGB) &&
+		(dpi->out_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_2020LIMITED)) {
+			/* MTX_RGB_TO_2020LIMITED */
+			matrix_sel = 0x10;
+		} else if ((dpi->in_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_RGB) &&
+		(dpi->out_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_2020FULL)) {
+			/* MTX_RGB_TO_2020FULL */
+			matrix_sel = 0x11;
+		} else if ((dpi->in_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_2020LIMITED) &&
+		(dpi->out_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_RGB)) {
+			/* MTX_2020LIMITED_TO_RGB */
+			matrix_sel = 0x12;
+		} else if ((dpi->in_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_2020FULL) &&
+		(dpi->out_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_RGB)) {
+			/* MTX_2020FULL_TO_RGB */
+			matrix_sel = 0x13;
+		} else if ((dpi->in_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_JPEG) &&
+		(dpi->out_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_CERGB)) {
+			/*  MTX_JPEG_TO_CERGB: full-range BT601 to limit-range sRGB */
+			matrix_sel = 0x14;
+		} else if ((dpi->in_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_FULL709) &&
+		(dpi->out_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_CERGB)) {
+			/*  MTX_FULL709_TO_CERGB: full-range BT709 to limit-range sRGB */
+			matrix_sel = 0x15;
+		} else if ((dpi->in_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_BT601) &&
+		(dpi->out_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_CERGB)) {
+			/*  MTX_BT601_TO_CERGB: limit-range BT601 to limit-range sRGB */
+			matrix_sel = 0x16;
+		} else if ((dpi->in_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_BT709) &&
+		(dpi->out_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_CERGB)) {
+			/*  MTX_BT709_TO_CERGB: limit-range BT709 to limit-range sRGB */
+			matrix_sel = 0x17;
+		}  else if ((dpi->in_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_2020LIMITED) &&
+		(dpi->out_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_CERGB)) {
+			/*  MTX_BT709_TO_CERGB: limit-range BT709 to limit-range sRGB */
+			matrix_sel = 0x17;
+		} else if ((dpi->in_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_RGB) &&
+		(dpi->out_format == MTK_DPI_INT_MATRIX_COLOR_FORMAT_CERGB)) {
+			/*  MTX_RGB_TO_CERGB: full-range sRGB to limit-range sRGB */
+			matrix_sel = 0x1C;
+		}
+		mtk_dpi_config_csc_enable(dpi, true);
+		mtk_dpi_mask(dpi, DPI_MATRIX_SET, matrix_sel, INT_MATRIX_SEL_MASK);
+	}
+	mtk_dpi_config_channel_swap(dpi, MTK_DPI_OUT_CHANNEL_SWAP_GBR);
+}
+
+#if 0
+static void mtk_dpi_set_input_format(bool bypass_matrix,
+				enum mtk_dpi_internal_matrix in_format)
+{
+	if (!mtk_global_dpi)
+		return;
+
+	mtk_global_dpi->bypass_matrix = bypass_matrix;
+	mtk_global_dpi->in_format = in_format;
+
+	if (mtk_global_dpi->refcount)
+		mtk_dpi_internal_matrix_sel(mtk_global_dpi);
+}
+#endif
 
 static void mtk_dpi_power_off(struct mtk_dpi *dpi)
 {
@@ -410,6 +643,8 @@ static void mtk_dpi_power_off(struct mtk_dpi *dpi)
 		pinctrl_select_state(dpi->pinctrl, dpi->pins_gpio);
 
 	mtk_dpi_disable(dpi);
+	regmap_update_bits(dpi->vdosys1_regmap,
+		dpi->vdosys1_offset + VDOSYS1_DUMMY0, DPI_ON, ~DPI_ON);
 	clk_disable_unprepare(dpi->pixel_clk);
 	clk_disable_unprepare(dpi->engine_clk);
 }
@@ -433,10 +668,12 @@ static int mtk_dpi_power_on(struct mtk_dpi *dpi)
 		goto err_pixel;
 	}
 
+	regmap_update_bits(dpi->vdosys1_regmap,
+		dpi->vdosys1_offset + VDOSYS1_DUMMY0, DPI_ON, DPI_ON);
+
 	if (dpi->pinctrl && dpi->pins_dpi)
 		pinctrl_select_state(dpi->pinctrl, dpi->pins_dpi);
 
-	mtk_dpi_enable(dpi);
 	return 0;
 
 err_pixel:
@@ -460,34 +697,38 @@ static int mtk_dpi_set_display_mode(struct mtk_dpi *dpi,
 	unsigned long pll_rate;
 	unsigned int factor;
 
-	/* let pll_rate can fix the valid range of tvdpll (1G~2GHz) */
-	factor = dpi->conf->cal_factor(mode->clock);
 	drm_display_mode_to_videomode(mode, &vm);
-	pll_rate = vm.pixelclock * factor;
 
-	dev_dbg(dpi->dev, "Want PLL %lu Hz, pixel clock %lu Hz\n",
-		pll_rate, vm.pixelclock);
+	/* let pll_rate can fix the valid range of tvdpll (1G~2GHz) */
+	if (dpi->tvd_clk) {
+		factor = dpi->conf->cal_factor(mode->clock);
+		pll_rate = vm.pixelclock * factor;
 
-	clk_set_rate(dpi->tvd_clk, pll_rate);
-	pll_rate = clk_get_rate(dpi->tvd_clk);
+		dev_dbg(dpi->dev, "Want PLL %lu Hz, pixel clock %lu Hz\n",
+			pll_rate, vm.pixelclock);
 
-	vm.pixelclock = pll_rate / factor;
-	if ((dpi->output_fmt == MEDIA_BUS_FMT_RGB888_2X12_LE) ||
-	    (dpi->output_fmt == MEDIA_BUS_FMT_RGB888_2X12_BE))
-		clk_set_rate(dpi->pixel_clk, vm.pixelclock * 2);
-	else
+		clk_set_rate(dpi->tvd_clk, pll_rate);
+		pll_rate = clk_get_rate(dpi->tvd_clk);
+
+		vm.pixelclock = pll_rate / factor;
 		clk_set_rate(dpi->pixel_clk, vm.pixelclock);
+		vm.pixelclock = clk_get_rate(dpi->pixel_clk);
 
+		dev_dbg(dpi->dev, "Got  PLL %lu Hz, pixel clock %lu Hz\n",
+			pll_rate, vm.pixelclock);
+	}
 
-	vm.pixelclock = clk_get_rate(dpi->pixel_clk);
-
-	dev_dbg(dpi->dev, "Got  PLL %lu Hz, pixel clock %lu Hz\n",
-		pll_rate, vm.pixelclock);
-
-	limit.c_bottom = 0x0010;
-	limit.c_top = 0x0FE0;
-	limit.y_bottom = 0x0010;
-	limit.y_top = 0x0FE0;
+	if (mtk_global_dpi->bypass_matrix) {
+		limit.c_bottom = 0x0000;
+		limit.c_top = 0x0FFF;
+		limit.y_bottom = 0x0000;
+		limit.y_top = 0x0FFF;
+	} else {
+		limit.c_bottom = 0x0010;
+		limit.c_top = 0x0FE0;
+		limit.y_bottom = 0x0010;
+		limit.y_top = 0x0FE0;
+	}
 
 	dpi_pol.ck_pol = MTK_DPI_POLARITY_FALLING;
 	dpi_pol.de_pol = MTK_DPI_POLARITY_RISING;
@@ -503,6 +744,9 @@ static int mtk_dpi_set_display_mode(struct mtk_dpi *dpi,
 	vsync_lodd.back_porch = vm.vback_porch;
 	vsync_lodd.front_porch = vm.vfront_porch;
 	vsync_lodd.shift_half_line = false;
+
+	dpi->in_format = mtk_global_dpi->in_format;
+	dpi->out_format = MTK_DPI_INT_MATRIX_COLOR_FORMAT_RGB;
 
 	if (vm.flags & DISPLAY_FLAGS_INTERLACED &&
 	    mode->flags & DRM_MODE_FLAG_3D_MASK) {
@@ -536,15 +780,31 @@ static int mtk_dpi_set_display_mode(struct mtk_dpi *dpi,
 	else
 		mtk_dpi_config_fb_size(dpi, vm.hactive, vm.vactive);
 
+	mtk_dpi_config_input_2p(dpi, true);
+	mtk_dpi_config_output_1t1p(dpi, true);
 	mtk_dpi_config_channel_limit(dpi, &limit);
 	mtk_dpi_config_bit_num(dpi, dpi->bit_num);
 	mtk_dpi_config_channel_swap(dpi, dpi->channel_swap);
 	mtk_dpi_config_yc_map(dpi, dpi->yc_map);
 	mtk_dpi_config_color_format(dpi, dpi->color_format);
+	mtk_dpi_get_output_format(dpi); //get OUT_FORMAT from HDMI
+	/* DPI do conversion in following cases:
+ 	* 1. BT601 YCbCr -> RGB full
+ 	* 2. BT601 YCbCr -> RGB limited
+ 	* 3. BT709 YCbCr -> RGB full
+ 	* 4. BT709 YCbCr -> RGB limited
+ 	* 5. BT2020 YCbCr -> RGB full
+ 	* 6. BT2020 YCbCr -> RGB limited
+ 	* 7. specical case: Dolby Vision: bypass
+ 	* in other cases, DPI just bypass conversion, and front-ended module
+ 	* shall convert the content to right format prior to DPI
+ 	*/
+	mtk_dpi_internal_matrix_sel(dpi);
+
 	mtk_dpi_config_2n_h_fre(dpi);
-	mtk_dpi_dual_edge(dpi);
 	mtk_dpi_config_disable_edge(dpi);
 	mtk_dpi_sw_reset(dpi, false);
+	mtk_dpi_enable(dpi);
 
 	return 0;
 }
@@ -605,7 +865,7 @@ static int mtk_dpi_bridge_atomic_check(struct drm_bridge *bridge,
 				       struct drm_crtc_state *crtc_state,
 				       struct drm_connector_state *conn_state)
 {
-	struct mtk_dpi *dpi = bridge->driver_private;
+	struct mtk_dpi *dpi = bridge_to_dpi(bridge);
 	unsigned int out_bus_format;
 
 	out_bus_format = bridge_state->output_bus_cfg.format;
@@ -685,16 +945,10 @@ static const struct drm_bridge_funcs mtk_dpi_bridge_funcs = {
 
 void mtk_dpi_start(struct device *dev)
 {
-	struct mtk_dpi *dpi = dev_get_drvdata(dev);
-
-	mtk_dpi_power_on(dpi);
 }
 
 void mtk_dpi_stop(struct device *dev)
 {
-	struct mtk_dpi *dpi = dev_get_drvdata(dev);
-
-	mtk_dpi_power_off(dpi);
 }
 
 static int mtk_dpi_bind(struct device *dev, struct device *master, void *data)
@@ -718,7 +972,7 @@ static int mtk_dpi_bind(struct device *dev, struct device *master, void *data)
 		dev_err(dev, "Failed to attach bridge: %d\n", ret);
 		goto err_cleanup;
 	}
-
+#if 0
 	dpi->connector = drm_bridge_connector_init(drm_dev, &dpi->encoder);
 	if (IS_ERR(dpi->connector)) {
 		dev_err(dev, "Unable to create bridge connector\n");
@@ -726,6 +980,11 @@ static int mtk_dpi_bind(struct device *dev, struct device *master, void *data)
 		goto err_cleanup;
 	}
 	drm_connector_attach_encoder(dpi->connector, &dpi->encoder);
+#endif
+	dpi->bit_num = MTK_DPI_OUT_BIT_NUM_8BITS;
+	dpi->channel_swap = MTK_DPI_OUT_CHANNEL_SWAP_RGB;
+	dpi->yc_map = MTK_DPI_OUT_YC_MAP_RGB;
+	dpi->color_format = MTK_DPI_COLOR_FORMAT_RGB;
 
 	return 0;
 
@@ -779,21 +1038,15 @@ static unsigned int mt8183_calculate_factor(int clock)
 		return 2;
 }
 
-static const u32 mt8173_output_fmts[] = {
-	MEDIA_BUS_FMT_RGB888_1X24,
-};
-
-static const u32 mt8183_output_fmts[] = {
-	MEDIA_BUS_FMT_RGB888_2X12_LE,
-	MEDIA_BUS_FMT_RGB888_2X12_BE,
-};
+static unsigned int mt8195_calculate_factor(int clock)
+{
+	return 1;
+}
 
 static const struct mtk_dpi_conf mt8173_conf = {
 	.cal_factor = mt8173_calculate_factor,
 	.reg_h_fre_con = 0xe0,
 	.max_clock_khz = 300000,
-	.output_fmts = mt8173_output_fmts,
-	.num_output_fmts = ARRAY_SIZE(mt8173_output_fmts),
 };
 
 static const struct mtk_dpi_conf mt2701_conf = {
@@ -801,24 +1054,23 @@ static const struct mtk_dpi_conf mt2701_conf = {
 	.reg_h_fre_con = 0xb0,
 	.edge_sel_en = true,
 	.max_clock_khz = 150000,
-	.output_fmts = mt8173_output_fmts,
-	.num_output_fmts = ARRAY_SIZE(mt8173_output_fmts),
 };
 
 static const struct mtk_dpi_conf mt8183_conf = {
 	.cal_factor = mt8183_calculate_factor,
 	.reg_h_fre_con = 0xe0,
 	.max_clock_khz = 100000,
-	.output_fmts = mt8183_output_fmts,
-	.num_output_fmts = ARRAY_SIZE(mt8183_output_fmts),
 };
 
 static const struct mtk_dpi_conf mt8192_conf = {
 	.cal_factor = mt8183_calculate_factor,
 	.reg_h_fre_con = 0xe0,
 	.max_clock_khz = 150000,
-	.output_fmts = mt8173_output_fmts,
-	.num_output_fmts = ARRAY_SIZE(mt8173_output_fmts),
+};
+
+static const struct mtk_dpi_conf mt8195_conf = {
+	.cal_factor = mt8195_calculate_factor,
+	.max_clock_khz = 594000,
 };
 
 static int mtk_dpi_probe(struct platform_device *pdev)
@@ -826,11 +1078,15 @@ static int mtk_dpi_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct mtk_dpi *dpi;
 	struct resource *mem;
+	struct regmap *regmap;
 	int ret;
 
 	dpi = devm_kzalloc(dev, sizeof(*dpi), GFP_KERNEL);
 	if (!dpi)
 		return -ENOMEM;
+
+	mtk_global_dpi = dpi;
+	mtk_global_dpi->in_format = MTK_DPI_INT_MATRIX_COLOR_FORMAT_BT709;
 
 	dpi->dev = dev;
 	dpi->conf = (struct mtk_dpi_conf *)of_device_get_match_data(dev);
@@ -864,6 +1120,24 @@ static int mtk_dpi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	/*
+	 * The mediatek,vdosys1-dpi property contains a phandle link to the
+	 * VDOSYS1_CONFIG device and the register offset of the VDOSYS1_DUMMY0
+	 * registers it contains.
+	 */
+	regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+			"mediatek,vdosys1-dpi");
+	ret = of_property_read_u32_index(pdev->dev.of_node,
+			"mediatek,vdosys1-dpi", 1,
+			&dpi->vdosys1_offset);
+	if (IS_ERR(regmap))
+		ret = PTR_ERR(regmap);
+	if (ret) {
+		ret = PTR_ERR(regmap);
+		pr_info("Failed to get vdosys1 registers: %d\n", ret);
+	}
+	dpi->vdosys1_regmap = regmap;
+
 	dpi->engine_clk = devm_clk_get(dev, "engine");
 	if (IS_ERR(dpi->engine_clk)) {
 		ret = PTR_ERR(dpi->engine_clk);
@@ -885,10 +1159,8 @@ static int mtk_dpi_probe(struct platform_device *pdev)
 	dpi->tvd_clk = devm_clk_get(dev, "pll");
 	if (IS_ERR(dpi->tvd_clk)) {
 		ret = PTR_ERR(dpi->tvd_clk);
-		if (ret != -EPROBE_DEFER)
 			dev_err(dev, "Failed to get tvdpll clock: %d\n", ret);
-
-		return ret;
+		dpi->tvd_clk = NULL;
 	}
 
 	dpi->irq = platform_get_irq(pdev, 0);
@@ -942,6 +1214,9 @@ static const struct of_device_id mtk_dpi_of_ids[] = {
 	},
 	{ .compatible = "mediatek,mt8192-dpi",
 	  .data = &mt8192_conf,
+	},
+	{ .compatible = "mediatek,mt8195-dpi",
+	  .data = &mt8195_conf,
 	},
 	{ },
 };

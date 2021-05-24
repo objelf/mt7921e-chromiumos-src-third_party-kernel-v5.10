@@ -164,14 +164,14 @@ static const enum mtk_ddp_comp_id mt8195_mtk_ddp_main[] = {
 #else
 	DDP_COMPONENT_DSI0,
 #endif
-
 };
 
 static const enum mtk_ddp_comp_id mt8195_mtk_ddp_ext[] = {
 	DDP_COMPONENT_PSEUDO_OVL,
 	DDP_COMPONENT_ETHDR,
 	DDP_COMPONENT_MERGE5,
-	DDP_COMPONENT_DP_INTF1,
+	//DDP_COMPONENT_DP_INTF1,
+	DDP_COMPONENT_DPI1,
 };
 
 static const struct mtk_mmsys_driver_data mt2701_mmsys_driver_data = {
@@ -508,13 +508,15 @@ static const struct of_device_id mtk_ddp_comp_dt_ids[] = {
 	  .data = (void *)MTK_DSI },
 	{ .compatible = "mediatek,mt8183-dsi",
 	  .data = (void *)MTK_DSI },
+#endif
 	{ .compatible = "mediatek,mt2701-dpi",
 	  .data = (void *)MTK_DPI },
 	{ .compatible = "mediatek,mt8173-dpi",
 	  .data = (void *)MTK_DPI },
 	{ .compatible = "mediatek,mt8183-dpi",
 	  .data = (void *)MTK_DPI },
-#endif
+	{ .compatible = "mediatek,mt8195-dpi",
+	  .data = (void *)MTK_DPI },
 	{ .compatible = "mediatek,mt2701-disp-mutex",
 	  .data = (void *)MTK_DISP_MUTEX },
 	{ .compatible = "mediatek,mt2712-disp-mutex",
