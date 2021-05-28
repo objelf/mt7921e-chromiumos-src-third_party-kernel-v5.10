@@ -412,7 +412,7 @@ BYTE mhal_DPTx_GetColorBpp(struct mtk_dp *mtk_dp)
 		break;
 	default:
 		ColorBpp = 24;
-		pr_info("Set Wrong Bpp = %d\n", ColorBpp);
+		dev_info(mtk_dp->dev, "Set Wrong Bpp = %d\n", ColorBpp);
 		break;
 	}
 
@@ -821,7 +821,7 @@ void mhal_DPTx_Audio_PG_EN(struct mtk_dp *mtk_dp, BYTE Channel,
 		msWrite2ByteMask(mtk_dp, REG_3324_DP_ENCODER1_P0,
 			0, AUDIO_SOURCE_MUX_DP_ENCODER1_P0_FLDMASK);
 	}
-	pr_info("fs = %d, ch = %d\n", Fs, Channel);
+	dev_info(mtk_dp->dev, "fs = %d, ch = %d\n", Fs, Channel);
 
 	//audio channel count change reset
 	msWriteByteMask(mtk_dp, REG_33F4_DP_ENCODER1_P0 + 1, BIT1, BIT1);
@@ -993,7 +993,9 @@ bool mhal_DPTx_GetHPDPinLevel(struct mtk_dp *mtk_dp)
 {
 	bool ret = (msReadByte(mtk_dp, REG_3414_DP_TRANS_P0) & BIT2) ? 1 : 0;
 
-	return ret | mtk_dp->bPowerOn;
+	dev_info(mtk_dp->dev, "%s\n", __func__);
+
+	return ret;
 }
 
 void mhal_DPTx_SPKG_SDP(struct mtk_dp *mtk_dp, bool bEnable, BYTE ucSDPType,
@@ -1024,7 +1026,7 @@ void mhal_DPTx_SPKG_SDP(struct mtk_dp *mtk_dp, bool bEnable, BYTE ucSDPType,
 						+ bRegIndex;
 
 					msWriteByte(mtk_dp, addr, pHB[pOffset]);
-					pr_info("W Reg addr: %x, index %d\n",
+					dev_info(mtk_dp->dev, "W Reg addr: %x, index %d\n",
 						addr, pOffset);
 				}
 		else if (ucSDPType >= DPTx_SDPTYP_PPS0
@@ -1039,7 +1041,7 @@ void mhal_DPTx_SPKG_SDP(struct mtk_dp *mtk_dp, bool bEnable, BYTE ucSDPType,
 						+ bRegIndex;
 
 					msWriteByte(mtk_dp, addr, pHB[pOffset]);
-					pr_info("W H1 Reg addr:%x,index:%d\n",
+					dev_info(mtk_dp->dev, "W H1 Reg addr:%x,index:%d\n",
 						addr, pOffset);
 				}
 		} else {
@@ -1054,7 +1056,7 @@ void mhal_DPTx_SPKG_SDP(struct mtk_dp *mtk_dp, bool bEnable, BYTE ucSDPType,
 						+ bRegIndex;
 
 					msWriteByte(mtk_dp, addr, pHB[pOffset]);
-					pr_info("W H2 Reg addr: %x,index %d\n",
+					dev_info(mtk_dp->dev, "W H2 Reg addr: %x,index %d\n",
 						addr, pOffset);
 				}
 		}
@@ -1072,7 +1074,7 @@ void mhal_DPTx_SPKG_SDP(struct mtk_dp *mtk_dp, bool bEnable, BYTE ucSDPType,
 			msWriteByteMask(mtk_dp, REG_3280_DP_ENCODER1_P0,
 				BIT5, BIT5);
 			msWriteByte(mtk_dp, REG_30B4_DP_ENCODER0_P0, 0x05);
-			pr_info("SENT SDP TYPE ACM\n");
+			dev_info(mtk_dp->dev, "SENT SDP TYPE ACM\n");
 		}
 		break;
 	case DPTx_SDPTYP_ISRC:
@@ -1091,7 +1093,7 @@ void mhal_DPTx_SPKG_SDP(struct mtk_dp *mtk_dp, bool bEnable, BYTE ucSDPType,
 			msWriteByteMask(mtk_dp, REG_3280_DP_ENCODER1_P0,
 				BIT5, BIT5);
 			msWriteByte(mtk_dp, REG_30B4_DP_ENCODER0_P0 + 1, 0x05);
-			pr_info("SENT SDP TYPE ISRC\n");
+			dev_info(mtk_dp->dev, "SENT SDP TYPE ISRC\n");
 		}
 		break;
 	case DPTx_SDPTYP_AVI:
@@ -1102,7 +1104,7 @@ void mhal_DPTx_SPKG_SDP(struct mtk_dp *mtk_dp, bool bEnable, BYTE ucSDPType,
 			msWriteByteMask(mtk_dp, REG_3280_DP_ENCODER1_P0,
 				BIT5, BIT5);
 			msWriteByte(mtk_dp, REG_30A4_DP_ENCODER0_P0 + 1, 0x05);
-			pr_info("SENT SDP TYPE AVI\n");
+			dev_info(mtk_dp->dev, "SENT SDP TYPE AVI\n");
 		}
 		break;
 	case DPTx_SDPTYP_AUI:
@@ -1113,7 +1115,7 @@ void mhal_DPTx_SPKG_SDP(struct mtk_dp *mtk_dp, bool bEnable, BYTE ucSDPType,
 			msWriteByteMask(mtk_dp, REG_3280_DP_ENCODER1_P0,
 				BIT5, BIT5);
 			msWriteByte(mtk_dp, REG_30A8_DP_ENCODER0_P0, 0x05);
-			pr_info("SENT SDP TYPE AUI\n");
+			dev_info(mtk_dp->dev, "SENT SDP TYPE AUI\n");
 		}
 		break;
 	case DPTx_SDPTYP_SPD:
@@ -1124,7 +1126,7 @@ void mhal_DPTx_SPKG_SDP(struct mtk_dp *mtk_dp, bool bEnable, BYTE ucSDPType,
 			msWriteByteMask(mtk_dp, REG_3280_DP_ENCODER1_P0,
 				BIT5, BIT5);
 			msWriteByte(mtk_dp, REG_30A8_DP_ENCODER0_P0 + 1, 0x05);
-			pr_info("SENT SDP TYPE SPD\n");
+			dev_info(mtk_dp->dev, "SENT SDP TYPE SPD\n");
 		}
 		break;
 	case DPTx_SDPTYP_MPEG:
@@ -1135,7 +1137,7 @@ void mhal_DPTx_SPKG_SDP(struct mtk_dp *mtk_dp, bool bEnable, BYTE ucSDPType,
 			msWriteByteMask(mtk_dp, REG_3280_DP_ENCODER1_P0,
 				BIT5, BIT5);
 			msWriteByte(mtk_dp, REG_30AC_DP_ENCODER0_P0, 0x05);
-			pr_info("SENT SDP TYPE MPEG\n");
+			dev_info(mtk_dp->dev, "SENT SDP TYPE MPEG\n");
 		}
 		break;
 	case DPTx_SDPTYP_NTSC:
@@ -1146,7 +1148,7 @@ void mhal_DPTx_SPKG_SDP(struct mtk_dp *mtk_dp, bool bEnable, BYTE ucSDPType,
 			msWriteByteMask(mtk_dp, REG_3280_DP_ENCODER1_P0,
 				BIT5, BIT5);
 			msWriteByte(mtk_dp, REG_30AC_DP_ENCODER0_P0 + 1, 0x05);
-			pr_info("SENT SDP TYPE NTSC\n");
+			dev_info(mtk_dp->dev, "SENT SDP TYPE NTSC\n");
 		}
 		break;
 	case DPTx_SDPTYP_VSP:
@@ -1157,7 +1159,7 @@ void mhal_DPTx_SPKG_SDP(struct mtk_dp *mtk_dp, bool bEnable, BYTE ucSDPType,
 			msWriteByteMask(mtk_dp, REG_3280_DP_ENCODER1_P0,
 				BIT5, BIT5);
 			msWriteByte(mtk_dp, REG_30B0_DP_ENCODER0_P0, 0x05);
-			pr_info("SENT SDP TYPE VSP\n");
+			dev_info(mtk_dp->dev, "SENT SDP TYPE VSP\n");
 		}
 		break;
 	case DPTx_SDPTYP_VSC:
@@ -1168,7 +1170,7 @@ void mhal_DPTx_SPKG_SDP(struct mtk_dp *mtk_dp, bool bEnable, BYTE ucSDPType,
 			msWriteByteMask(mtk_dp, REG_3280_DP_ENCODER1_P0,
 				BIT5, BIT5);
 			msWriteByte(mtk_dp, REG_30B8_DP_ENCODER0_P0, 0x05);
-			pr_info("SENT SDP TYPE VSC\n");
+			dev_info(mtk_dp->dev, "SENT SDP TYPE VSC\n");
 		}
 		break;
 	case DPTx_SDPTYP_EXT:
@@ -1179,7 +1181,7 @@ void mhal_DPTx_SPKG_SDP(struct mtk_dp *mtk_dp, bool bEnable, BYTE ucSDPType,
 			msWriteByteMask(mtk_dp, REG_3280_DP_ENCODER1_P0,
 				BIT5, BIT5);
 			msWriteByte(mtk_dp, REG_30B0_DP_ENCODER0_P0 + 1, 0x05);
-			pr_info("SENT SDP TYPE EXT\n");
+			dev_info(mtk_dp->dev, "SENT SDP TYPE EXT\n");
 		}
 		break;
 
@@ -1191,7 +1193,7 @@ void mhal_DPTx_SPKG_SDP(struct mtk_dp *mtk_dp, bool bEnable, BYTE ucSDPType,
 			msWriteByteMask(mtk_dp, REG_3280_DP_ENCODER1_P0,
 				BIT5, BIT5);
 			msWriteByte(mtk_dp, REG_31E8_DP_ENCODER0_P0, 0x05);
-			pr_info("SENT SDP TYPE PPS0\n");
+			dev_info(mtk_dp->dev, "SENT SDP TYPE PPS0\n");
 		}
 	break;
 
@@ -1203,7 +1205,7 @@ void mhal_DPTx_SPKG_SDP(struct mtk_dp *mtk_dp, bool bEnable, BYTE ucSDPType,
 			msWriteByteMask(mtk_dp, REG_3280_DP_ENCODER1_P0,
 				BIT5, BIT5);
 			msWriteByte(mtk_dp, REG_31E8_DP_ENCODER0_P0, 0x05);
-			pr_info("SENT SDP TYPE PPS1\n");
+			dev_info(mtk_dp->dev, "SENT SDP TYPE PPS1\n");
 		}
 	break;
 
@@ -1215,7 +1217,7 @@ void mhal_DPTx_SPKG_SDP(struct mtk_dp *mtk_dp, bool bEnable, BYTE ucSDPType,
 			msWriteByteMask(mtk_dp, REG_3280_DP_ENCODER1_P0,
 				BIT5, BIT5);
 			msWriteByte(mtk_dp, REG_31E8_DP_ENCODER0_P0, 0x05);
-			pr_info("SENT SDP TYPE PPS2\n");
+			dev_info(mtk_dp->dev, "SENT SDP TYPE PPS2\n");
 		}
 	break;
 
@@ -1227,7 +1229,7 @@ void mhal_DPTx_SPKG_SDP(struct mtk_dp *mtk_dp, bool bEnable, BYTE ucSDPType,
 			msWriteByteMask(mtk_dp, REG_3280_DP_ENCODER1_P0,
 				BIT5, BIT5);
 			msWriteByte(mtk_dp, REG_31E8_DP_ENCODER0_P0, 0x05);
-			pr_info("SENT SDP TYPE PPS3\n");
+			dev_info(mtk_dp->dev, "SENT SDP TYPE PPS3\n");
 		}
 	break;
 
@@ -1245,7 +1247,7 @@ void mhal_DPTx_SPKG_SDP(struct mtk_dp *mtk_dp, bool bEnable, BYTE ucSDPType,
 			msWriteByteMask(mtk_dp, REG_3280_DP_ENCODER1_P0,
 				BIT5, BIT5);
 			msWriteByte(mtk_dp, REG_31DC_DP_ENCODER0_P0, 0x05);
-			pr_info("SENT SDP TYPE DRM\n");
+			dev_info(mtk_dp->dev, "SENT SDP TYPE DRM\n");
 		}
 	break;
 	default:
@@ -1427,14 +1429,14 @@ bool mhal_DPTx_AuxRead_Bytes(struct mtk_dp *mtk_dp, BYTE ubCmd,
 		}
 
 		if (uAuxIrqStatus & AUX_400US_TIMEOUT_IRQ_AUX_TX_P0_FLDMASK) {
-			pr_info("(AUX Read)HW Timeout 400us irq");
+			dev_info(mtk_dp->dev, "(AUX Read)HW Timeout 400us irq");
 			break;
 		}
 	}
 
 	ubReplyCmd = msReadByte(mtk_dp, REG_3624_AUX_TX_P0) & 0x0F;
 	if (ubReplyCmd)
-		pr_info("ubReplyCmd =%x NACK or Defer\n", ubReplyCmd);
+		dev_info(mtk_dp->dev, "ubReplyCmd =%x NACK or Defer\n", ubReplyCmd);
 
 	if ((WaitReplyCount == 0x0) || ubReplyCmd) {
 		BYTE phyStatus = 0x00;
@@ -1449,7 +1451,7 @@ bool mhal_DPTx_AuxRead_Bytes(struct mtk_dp *mtk_dp, BYTE ubCmd,
 		msWriteByte(mtk_dp, REG_3640_AUX_TX_P0, 0x7F);
 
 		udelay(AUX_WRITE_READ_WAIT_TIME);
-		pr_info("WaitReplyCount =%x TimeOut", WaitReplyCount);
+		dev_info(mtk_dp->dev, "WaitReplyCount =%x TimeOut", WaitReplyCount);
 		return false;
 	}
 
@@ -1479,7 +1481,7 @@ bool mhal_DPTx_AuxRead_Bytes(struct mtk_dp *mtk_dp, BYTE ubCmd,
 						REG_3620_AUX_TX_P0);
 			}
 		} else
-			pr_info("Read TimeOut 0x%lx\n", usDPCDADDR);
+			dev_info(mtk_dp->dev, "Read TimeOut 0x%lx\n", usDPCDADDR);
 	}
 
 	msWrite2ByteMask(mtk_dp, REG_3650_AUX_TX_P0,
@@ -1544,7 +1546,7 @@ bool mhal_DPTx_AuxWrite_Bytes(struct mtk_dp *mtk_dp,
 		}
 
 		if (uAuxIrqStatus & AUX_400US_TIMEOUT_IRQ_AUX_TX_P0_FLDMASK) {
-			pr_info("HW TO irq (Write) %lld ns\n",
+			dev_info(mtk_dp->dev, "HW TO irq (Write) %lld ns\n",
 				sched_clock() - cStart);
 			break;
 		}
@@ -1552,7 +1554,7 @@ bool mhal_DPTx_AuxWrite_Bytes(struct mtk_dp *mtk_dp,
 
 	ubReplyCmd = msReadByte(mtk_dp, REG_3624_AUX_TX_P0) & 0x0F;
 	if (ubReplyCmd)
-		pr_info("ubReplyCmd =%x NACK or Defer\n", ubReplyCmd);
+		dev_info(mtk_dp->dev, "ubReplyCmd =%x NACK or Defer\n", ubReplyCmd);
 
 	if ((WaitReplyCount == 0x0) || ubReplyCmd) {
 		BYTE phyStatus = 0x00;
@@ -1566,7 +1568,7 @@ bool mhal_DPTx_AuxWrite_Bytes(struct mtk_dp *mtk_dp,
 
 		udelay(AUX_WRITE_READ_WAIT_TIME);
 
-		pr_info("ubReplyCmd = 0x%x WaitReplyCount = %d\n",
+		dev_info(mtk_dp->dev, "ubReplyCmd = 0x%x WaitReplyCount = %d\n",
 			ubReplyCmd, WaitReplyCount);
 		return false;
 	}
@@ -1585,7 +1587,7 @@ bool mhal_DPTx_AuxWrite_Bytes(struct mtk_dp *mtk_dp,
 bool mhal_DPTx_SetSwingtPreEmphasis(struct mtk_dp *mtk_dp, int lane_num,
 	int swingValue, int preEmphasis)
 {
-	pr_info("lane%d, set Swing = %x, Emp =%x\n", lane_num,
+	dev_info(mtk_dp->dev, "lane%d, set Swing = %x, Emp =%x\n", lane_num,
 		swingValue, preEmphasis);
 
 	switch (lane_num) {
@@ -1667,7 +1669,7 @@ void mhal_DPTx_ISR(struct mtk_dp *mtk_dp)
 	uint32_t int_status;
 
 	int_status = msRead4Byte(mtk_dp, DP_TX_TOP_IRQ_STATUS);
-	DPTXDBG("int_status = 0x%x\n", int_status);
+	dev_info(mtk_dp->dev, "int_status = 0x%x\n", int_status);
 
 	if (int_status & BIT2)
 		AuxIrqCnt++;
@@ -1680,13 +1682,13 @@ void mhal_DPTx_ISR(struct mtk_dp *mtk_dp)
 	if (int_status & BIT0)
 		EncIrqCnt++;
 
-	DPTXDBG("AuxIrqCnt:%ld, TransIrqCnt:%ld, EncIrqCnt:%ld\n",
+	dev_info(mtk_dp->dev, "AuxIrqCnt:%ld, TransIrqCnt:%ld, EncIrqCnt:%ld\n",
 		AuxIrqCnt, TransIrqCnt, EncIrqCnt);
 }
 
 void mhal_DPTx_EnableFEC(struct mtk_dp *mtk_dp, bool bENABLE)
 {
-	pr_info("enable = %d\n", bENABLE);
+	dev_info(mtk_dp->dev, "enable = %d\n", bENABLE);
 	if (bENABLE)
 		msWriteByteMask(mtk_dp,
 			REG_3540_DP_TRANS_P0, BIT0, BIT0); // [0] : FEC Enable
@@ -1697,7 +1699,7 @@ void mhal_DPTx_EnableFEC(struct mtk_dp *mtk_dp, bool bENABLE)
 
 void mhal_DPTx_EnableDSC(struct mtk_dp *mtk_dp, bool bENABLE)
 {
-	pr_info("DSC enable=%d\n", bENABLE);
+	dev_info(mtk_dp->dev, "DSC enable=%d\n", bENABLE);
 	if (bENABLE) {
 		msWriteByteMask(mtk_dp,
 			REG_336C_DP_ENCODER1_P0,
@@ -1822,7 +1824,7 @@ void mhal_DPTx_USBC_HPD(struct mtk_dp *mtk_dp, bool conn)
 			0,
 			HPD_SET_DP_TRANS_P0_FLDMASK);
 
-	pr_info("REG3414 = 0x%x\n", msReadByte(mtk_dp, REG_3414_DP_TRANS_P0));
+	dev_info(mtk_dp->dev, "REG3414 = 0x%x\n", msReadByte(mtk_dp, REG_3414_DP_TRANS_P0));
 }
 
 WORD mhal_DPTx_GetSWIRQStatus(struct mtk_dp *mtk_dp)
@@ -1837,7 +1839,7 @@ void mhal_DPTx_SWInterruptSet(struct mtk_dp *mtk_dp, WORD bstatus)
 }
 void mhal_DPTx_SWInterruptClr(struct mtk_dp *mtk_dp, WORD bstatus)
 {
-	pr_info("%s", __func__);
+	dev_info(mtk_dp->dev, "%s\n", __func__);
 	msWrite2Byte(mtk_dp, REG_35C8_DP_TRANS_P0, bstatus);
 	msWrite2Byte(mtk_dp, REG_35C8_DP_TRANS_P0, 0);
 }
@@ -1857,7 +1859,7 @@ BYTE mhal_DPTx_GetHPDIRQStatus(struct mtk_dp *mtk_dp)
 
 void mhal_DPTx_HPDInterruptClr(struct mtk_dp *mtk_dp, BYTE bstatus)
 {
-	pr_info("%s", __func__);
+	dev_info(mtk_dp->dev, "%s\n", __func__);
 	msWriteByteMask(mtk_dp,
 		REG_3418_DP_TRANS_P0,
 		bstatus,
@@ -1870,7 +1872,7 @@ void mhal_DPTx_HPDInterruptClr(struct mtk_dp *mtk_dp, BYTE bstatus)
 
 void mhal_DPTx_HPDInterruptEnable(struct mtk_dp *mtk_dp, bool enable)
 {
-	pr_info("%s", __func__);
+	dev_info(mtk_dp->dev, "%s\n", __func__);
 	// [7]:int[6]:Con[5]DisCon[4]No-Use:UnMASK HPD Port
 	if (enable)
 		msWriteByteMask(mtk_dp,
@@ -1954,7 +1956,7 @@ void mhal_DPTx_AdjustPHYSetting(struct mtk_dp *mtk_dp, BYTE c0, BYTE cp1)
 	uint32_t reg = 0;
 	BYTE temp = 0;
 
-	pr_info("%s", __func__);
+	dev_info(mtk_dp->dev, "%s\n", __func__);
 
 	temp = c0 & 0x3F;
 	reg = temp | (temp << 8) | (temp << 16) | (temp << 24);
@@ -1995,7 +1997,7 @@ void mhal_DPTx_AdjustPHYSetting(struct mtk_dp *mtk_dp, BYTE c0, BYTE cp1)
 
 void mhal_DPTx_SSCOnOffSetting(struct mtk_dp *mtk_dp, bool bENABLE)
 {
-	pr_info("SSC enable = %d\n", bENABLE);
+	dev_info(mtk_dp->dev, "SSC enable = %d\n", bENABLE);
 
 	msWrite4ByteMask(mtk_dp, 0x2000, BIT(0), BITMASK(0:1));
 
@@ -2036,7 +2038,7 @@ void mhal_DPTx_AuxSetting(struct mtk_dp *mtk_dp)
 
 void mhal_DPTx_DigitalSetting(struct mtk_dp *mtk_dp)
 {
-	pr_info("%s", __func__);
+	dev_info(mtk_dp->dev, "%s\n", __func__);
 
 	msWriteByteMask(mtk_dp,
 		REG_304C_DP_ENCODER0_P0,
@@ -2062,7 +2064,7 @@ void mhal_DPTx_DigitalSetting(struct mtk_dp *mtk_dp)
 
 void mhal_DPTx_DigitalSwReset(struct mtk_dp *mtk_dp)
 {
-	pr_info("%s", __func__);
+	dev_info(mtk_dp->dev, "%s\n", __func__);
 
 	msWriteByteMask(mtk_dp, REG_340C_DP_TRANS_P0 + 1, BIT5, BIT5);
 	mdelay(1);
@@ -2088,7 +2090,7 @@ void mhal_DPTx_PHYD_Reset(struct mtk_dp *mtk_dp)
 
 void mhal_DPTx_SetTxLane(struct mtk_dp *mtk_dp, int  Value)
 {
-	pr_info("%s", __func__);
+	dev_info(mtk_dp->dev, "%s\n", __func__);
 
 	if (Value == 0)
 		msWriteByteMask(mtk_dp,
@@ -2115,7 +2117,7 @@ void mhal_DPTx_SetTxLane(struct mtk_dp *mtk_dp, int  Value)
 
 void mhal_DPTx_SetTxRate(struct mtk_dp *mtk_dp, int Value)
 {
-	pr_info("%s", __func__);
+	dev_info(mtk_dp->dev, "%s\n", __func__);
 
 	msWrite4Byte(mtk_dp, 0x2000, 0x00000001); // power off TPLL and Lane;
 	/// Set gear : 0x0 : RBR, 0x1 : HBR, 0x2 : HBR2, 0x3 : HBR3
@@ -2152,7 +2154,7 @@ void mhal_DPTx_SetTxRate(struct mtk_dp *mtk_dp, int Value)
 
 void mhal_DPTx_SetTxTrainingPattern(struct mtk_dp *mtk_dp, int  Value)
 {
-	pr_info("Set Train Pattern =0x%x\n ", Value);
+	dev_info(mtk_dp->dev, "Set Train Pattern =0x%x\n ", Value);
 
 	if (Value == BIT4) // if Set TPS1
 		mhal_DPTx_PHY_SetIdlePattern(mtk_dp, false);
@@ -2182,7 +2184,7 @@ void mhal_DPTx_PHY_SetIdlePattern(struct mtk_dp *mtk_dp, bool bENABLE)
 
 void mhal_DPTx_SetFreeSync(struct mtk_dp *mtk_dp, bool bENABLE)
 {
-	pr_info("%s", __func__);
+	dev_info(mtk_dp->dev, "%s\n", __func__);
 	if (bENABLE)//mtk_dp, REG_bs2bs_mode, [13 : 12]  = 11 freesync on
 		msWriteByteMask(mtk_dp,
 			REG_3368_DP_ENCODER1_P0 + 1,
@@ -2245,7 +2247,7 @@ void mhal_DPTx_SetScramble_Type(struct mtk_dp *mtk_dp, bool bSelType)
 
 void mhal_DPTx_VideoMute(struct mtk_dp *mtk_dp, bool bENABLE)
 {
-	pr_info("enable = %d\n", bENABLE);
+	dev_info(mtk_dp->dev, "enable = %d\n", bENABLE);
 
 	if (bENABLE) {
 		msWriteByteMask(mtk_dp,
@@ -2268,12 +2270,12 @@ void mhal_DPTx_VideoMute(struct mtk_dp *mtk_dp, bool bENABLE)
 		else
 			mtk_dp_atf_call(DP_ATF_VIDEO_UNMUTE, 0);
 	}
-	pr_info("mute = 0x%x\n", readl(mtk_dp->regs + 0x402c));
+	dev_info(mtk_dp->dev, "mute = 0x%x\n", readl(mtk_dp->regs + 0x402c));
 }
 
 void mhal_DPTx_VideoMuteSW(struct mtk_dp *mtk_dp, bool bENABLE)
 {
-	pr_info("enable = %d\n", bENABLE);
+	dev_info(mtk_dp->dev, "enable = %d\n", bENABLE);
 	if (bENABLE)
 		msWriteByteMask(mtk_dp,
 			REG_304C_DP_ENCODER0_P0,
@@ -2289,7 +2291,7 @@ void mhal_DPTx_VideoMuteSW(struct mtk_dp *mtk_dp, bool bENABLE)
 
 void mhal_DPTx_AudioMute(struct mtk_dp *mtk_dp, bool bENABLE)
 {
-	pr_info("%s", __func__);
+	dev_info(mtk_dp->dev, "%s\n", __func__);
 	if (bENABLE) {
 		msWrite2ByteMask(mtk_dp,
 			REG_3030_DP_ENCODER0_P0,
@@ -2326,7 +2328,7 @@ void mhal_DPTx_AudioMute(struct mtk_dp *mtk_dp, bool bENABLE)
 
 void mhal_DPTx_ShutDownDPTxPort(struct mtk_dp *mtk_dp)
 {
-	pr_info("%s", __func__);
+	dev_info(mtk_dp->dev, "%s\n", __func__);
 
 	//Power Down Tx Aux
 	msWriteByteMask(mtk_dp, REG_367C_AUX_TX_P0 + 1, 0, BIT4);

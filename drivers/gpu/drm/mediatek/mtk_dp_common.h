@@ -155,6 +155,9 @@ struct mtk_dp {
 	struct drm_bridge *next_bridge;
 	struct drm_connector conn;
 	struct drm_encoder enc;
+	struct work_struct work;
+	struct workqueue_struct *workqueue;
+	u8 bridge_attached;
 	int id;
 	struct edid *edid;
 	struct drm_dp_aux aux;
