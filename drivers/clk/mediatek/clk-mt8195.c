@@ -528,15 +528,6 @@ static const char * const atb_parents[] = {
 	"mainpll_d5_d2"
 };
 
-static const char * const pwrmcu_parents[] = {
-	"clk26m",
-	"mainpll_d7_d2",
-	"mainpll_d6_d2",
-	"mainpll_d5_d2",
-	"mainpll_d9",
-	"mainpll_d4_d2"
-};
-
 static const char * const dp_parents[] = {
 	"clk26m",
 	"tvdpll1_d2",
@@ -1284,8 +1275,6 @@ static const struct mtk_mux top_mtk_muxes[] = {
 		pwrap_ulposc_parents, 0x08C, 0x090, 0x094, 0, 3, 7, 0x08, 4),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_ATB_SEL, "atb_sel",
 		atb_parents, 0x08C, 0x090, 0x094, 8, 2, 15, 0x08, 5),
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_PWRMCU_SEL, "pwrmcu_sel",
-		pwrmcu_parents, 0x08C, 0x090, 0x094, 16, 3, 23, 0x08, 6),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_DP_SEL, "dp_sel",
 		dp_parents, 0x08C, 0x090, 0x094, 24, 4, 31, 0x08, 7),
 	/* CLK_CFG_10 */
@@ -1599,8 +1588,6 @@ static const struct mtk_gate infra_ao_clks[] = {
 	GATE_INFRA_AO2(CLK_INFRA_AO_UNIPRO_SYS, "infra_ao_unipro_sys", "ufs_sel", 11),
 	GATE_INFRA_AO2(CLK_INFRA_AO_UNIPRO_TICK, "infra_ao_unipro_tick", "ufs_tick1us_sel", 12),
 	GATE_INFRA_AO2(CLK_INFRA_AO_UFS_MP_SAP_B, "infra_ao_ufs_mp_sap_b", "ufs_mp_sap_sel", 13),
-	GATE_INFRA_AO2(CLK_INFRA_AO_PWRMCU, "infra_ao_pwrmcu", "pwrmcu_sel", 15),
-	GATE_INFRA_AO2(CLK_INFRA_AO_PWRMCU_BUS_H, "infra_ao_pwrmcu_bus_h", "axi_sel", 17),
 	GATE_INFRA_AO2(CLK_INFRA_AO_APDMA_B, "infra_ao_apdma_b", "axi_sel", 18),
 	GATE_INFRA_AO2(CLK_INFRA_AO_SPI4, "infra_ao_spi4", "spi_sel", 25),
 	GATE_INFRA_AO2(CLK_INFRA_AO_SPI5, "infra_ao_spi5", "spi_sel", 26),
