@@ -645,6 +645,7 @@
 	dptx_pin: dptx_pin_default {
 		pins_cmd_dat1 {
 			pinmux = <PINMUX_GPIO18__FUNC_DP_TX_HPD>;
+			bias-pull-up;
 		};
 	};
 
