@@ -14,6 +14,7 @@
 #include "drm/mediatek_drm.h"
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <sound/hdmi-codec.h>
 
 #include "mtk_dp_hdcp.h"
 #include "mtk_dp_debug.h"
@@ -147,6 +148,16 @@ struct mtk_dp_driver_data {
 	bool is_edp;
 };
 
+enum dp_aud_mclk {
+	MCLK_128FS,
+	MCLK_192FS,
+	MCLK_256FS,
+	MCLK_384FS,
+	MCLK_512FS,
+	MCLK_768FS,
+	MCLK_1152FS,
+};
+
 struct mtk_dp {
 	struct device *dev;
 	struct mtk_ddp_comp ddp_comp;
@@ -200,6 +211,9 @@ struct mtk_dp {
 	struct mtk_drm_private *priv;
 	struct mutex dp_lock;
 	const struct mtk_dp_driver_data *driver_data;
+	hdmi_codec_plugged_cb plugged_cb;
+	struct device *codec_dev;
+	struct mutex update_plugged_status_lock;
 };
 #endif /*__DRTX_TYPE_H__*/
 

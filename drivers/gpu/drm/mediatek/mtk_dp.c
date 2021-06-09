@@ -36,14 +36,15 @@
 #include <drm/mediatek_drm.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
-#include "mtk_drm_ddp_comp.h"
+#include <sound/hdmi-codec.h>
 #include <video/videomode.h>
 
 #include "mtk_dp.h"
 #include "mtk_dp_hal.h"
-#include "mtk_drm_drv.h"
 #include "mtk_dp_api.h"
 #include "mtk_dp_reg.h"
+#include "mtk_drm_ddp_comp.h"
+#include "mtk_drm_drv.h"
 
 static inline struct mtk_dp *dp_from_conn(struct drm_connector *c)
 {
@@ -1848,6 +1849,17 @@ static enum drm_connector_status mtk_dp_conn_detect(struct drm_connector *conn,
 		connector_status_disconnected);
 }
 
+static void mtk_hdmi_update_plugged_status(struct mtk_dp *mtk_dp)
+{
+	bool connected;
+
+	mutex_lock(&mtk_dp->update_plugged_status_lock);
+	connected = mhal_DPTx_GetHPDPinLevel(mtk_dp);
+	if (mtk_dp->plugged_cb && mtk_dp->codec_dev)
+		mtk_dp->plugged_cb(mtk_dp->codec_dev, connected);
+	mutex_unlock(&mtk_dp->update_plugged_status_lock);
+}
+
 static enum drm_connector_status mtk_dp_bdg_detect(struct drm_bridge *bridge)
 {
 	struct mtk_dp *mtk_dp = dp_from_bridge(bridge);
@@ -1858,10 +1870,12 @@ static enum drm_connector_status mtk_dp_bdg_detect(struct drm_bridge *bridge)
 	ret = mhal_DPTx_GetHPDPinLevel(mtk_dp) ? connector_status_connected :
 			connector_status_disconnected;
 
-	if (mtk_dp->driver_data && mtk_dp->driver_data->is_edp)
+	if (mtk_dp->driver_data && mtk_dp->driver_data->is_edp) {
 		return connector_status_connected;
-	else
+	} else {
+		mtk_hdmi_update_plugged_status(mtk_dp);
 		return ret;
+	}
 }
 
 static void mtk_dp_conn_destroy(struct drm_connector *conn)
@@ -2239,6 +2253,155 @@ static const struct drm_bridge_funcs mtk_dp_bridge_funcs = {
 	.get_modes = mtk_dp_bdg_get_modes,
 };
 
+/*
+ * HDMI audio codec callbacks
+ */
+static int mtk_dp_audio_hw_params(struct device *dev, void *data,
+				    struct hdmi_codec_daifmt *daifmt,
+				    struct hdmi_codec_params *params)
+{
+	struct mtk_dp *mtk_dp = dev_get_drvdata(dev);
+	u8 ucChannel, ucFs, ucWordlength;
+	unsigned int chan = params->cea.channels;
+
+	if (!mtk_dp->dp_ready) {
+		pr_err("%s, DP is not ready!\n", __func__);
+		return -ENODEV;
+	}
+
+	switch (chan) {
+	case 2:
+		ucChannel = 2;
+		break;
+	case 4:
+	case 6:
+	case 8:
+		ucChannel = 8;
+		break;
+	default:
+		ucChannel = 2;
+		break;
+	}
+
+	switch (params->sample_rate) {
+	case 32000:
+		ucFs = FS_32K;
+		break;
+	case 44100:
+		ucFs = FS_44K;
+		break;
+	case 48000:
+		ucFs = FS_48K;
+		break;
+	case 88200:
+		ucFs = FS_88K;
+		break;
+	case 96000:
+		ucFs = FS_96K;
+		break;
+	case 176400:
+		ucFs = FS_176K;
+		break;
+	case 192000:
+		ucFs = FS_192K;
+		break;
+	default:
+		ucFs = FS_48K;
+		break;
+	}
+
+	switch (daifmt->fmt) {
+	case HDMI_I2S:
+	default:
+		ucWordlength = WL_24bit;
+		break;
+	}
+
+	mdrv_DPTx_I2S_Audio_SDP_Channel_Setting(mtk_dp, ucChannel,
+		ucFs, ucWordlength);
+	mdrv_DPTx_I2S_Audio_Ch_Status_Set(mtk_dp, ucChannel,
+		ucFs, ucWordlength);
+
+	mhal_DPTx_Audio_PG_EN(mtk_dp, ucChannel, ucFs, false);
+	mdrv_DPTx_I2S_Audio_Set_MDiv(mtk_dp, 5);
+
+	return 0;
+}
+
+static int mtk_dp_audio_startup(struct device *dev, void *data)
+{
+	struct mtk_dp *mtk_dp = dev_get_drvdata(dev);
+
+	mdrv_DPTx_AudioMute(mtk_dp, false);
+
+	return 0;
+}
+
+static void mtk_dp_audio_shutdown(struct device *dev, void *data)
+{
+	struct mtk_dp *mtk_dp = dev_get_drvdata(dev);
+
+	mdrv_DPTx_AudioMute(mtk_dp, true);
+}
+
+static int mtk_dp_audio_get_eld(struct device *dev, void *data, uint8_t *buf, size_t len)
+{
+	struct mtk_dp *mtk_dp = dev_get_drvdata(dev);
+
+	if (mtk_dp->enabled)
+		memcpy(buf, mtk_dp->conn.eld, min(sizeof(mtk_dp->conn.eld), len));
+	else
+		memset(buf, 0, len);
+	return 0;
+}
+
+static int mtk_dp_audio_hook_plugged_cb(struct device *dev, void *data,
+					  hdmi_codec_plugged_cb fn,
+					  struct device *codec_dev)
+{
+	struct mtk_dp *mtk_dp = data;
+
+	mutex_lock(&mtk_dp->update_plugged_status_lock);
+	mtk_dp->plugged_cb = fn;
+	mtk_dp->codec_dev = codec_dev;
+	mutex_unlock(&mtk_dp->update_plugged_status_lock);
+
+	mtk_hdmi_update_plugged_status(mtk_dp);
+
+	return 0;
+}
+
+static const struct hdmi_codec_ops mtk_dp_audio_codec_ops = {
+	.hw_params = mtk_dp_audio_hw_params,
+	.audio_startup = mtk_dp_audio_startup,
+	.audio_shutdown = mtk_dp_audio_shutdown,
+	//.mute_stream = mtk_dp_audio_mute,
+	.get_eld = mtk_dp_audio_get_eld,
+	.hook_plugged_cb = mtk_dp_audio_hook_plugged_cb,
+	.no_capture_mute = 1,
+};
+
+static int mtk_dp_register_audio_driver(struct device *dev)
+{
+	struct mtk_dp *mtk_dp = dev_get_drvdata(dev);
+	struct hdmi_codec_pdata codec_data = {
+		.ops = &mtk_dp_audio_codec_ops,
+		.max_i2s_channels = 8,
+		.i2s = 1,
+		.data = mtk_dp,
+	};
+	struct platform_device *pdev;
+
+	pdev = platform_device_register_data(dev, HDMI_CODEC_DRV_NAME,
+					     PLATFORM_DEVID_AUTO, &codec_data,
+					     sizeof(codec_data));
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	DRM_INFO("%s driver bound to DP\n", HDMI_CODEC_DRV_NAME);
+	return 0;
+}
+
 static int mtk_drm_dp_probe(struct platform_device *pdev)
 {
 	struct mtk_dp *mtk_dp;
@@ -2310,6 +2473,16 @@ static int mtk_drm_dp_probe(struct platform_device *pdev)
 
 	mutex_init(&mtk_dp->dp_lock);
 
+	platform_set_drvdata(pdev, mtk_dp);
+
+	if (!(mtk_dp->driver_data && mtk_dp->driver_data->is_edp)) {
+		mutex_init(&mtk_dp->update_plugged_status_lock);
+		ret = mtk_dp_register_audio_driver(dev);
+		if (ret) {
+			dev_err(dev, "Failed to register audio driver: %d\n", ret);
+			return ret;
+		}
+	}
 	mtk_dp->bridge.funcs = &mtk_dp_bridge_funcs;
 	mtk_dp->bridge.of_node = pdev->dev.of_node;
 	if (mtk_dp->driver_data && mtk_dp->driver_data->is_edp)
