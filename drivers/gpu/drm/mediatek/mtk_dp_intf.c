@@ -645,10 +645,7 @@ static int mtk_dpintf_set_display_mode(struct mtk_dpintf *dpintf,
 	mtk_dpintf_config_channel_swap(dpintf, dpintf->channel_swap);
 	mtk_dpintf_config_color_format(dpintf, dpintf->color_format);
 
-	mtk_dpintf_mask(dpintf, DPINTF_CON, MATRIX_EN, MATRIX_EN | INPUT_2P_EN);
-	mtk_dpintf_mask(dpintf, DPINTF_OUTPUT_SETTING, SWAP_BRG, CH_SWAP_MASK);
-	mtk_dpintf_mask(dpintf, DPINTF_MATRIX_SET, BT709_TO_RGB, INT_MATRIX_SEL_MASK);
-
+	mtk_dpintf_mask(dpintf, DPINTF_CON, INPUT_2P_EN, INPUT_2P_EN);
 	mtk_dpintf_sw_reset(dpintf, false);
 
 	return 0;

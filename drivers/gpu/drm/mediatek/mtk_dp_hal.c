@@ -98,7 +98,7 @@ void mhal_dump_reg(struct mtk_dp *mtk_dp)
 		val[1] = msRead4Byte(mtk_dp, reg + 4);
 		val[2] = msRead4Byte(mtk_dp, reg + 8);
 		val[3] = msRead4Byte(mtk_dp, reg + 12);
-		pr_info("aux reg[0x%x] = 0x%x 0x%x 0x%x 0x%x",
+		dev_info(mtk_dp->dev,"aux reg[0x%x] = 0x%x 0x%x 0x%x 0x%x",
 			reg, val[0], val[1], val[2], val[3]);
 	}
 }
@@ -113,7 +113,7 @@ void mhal_DPTx_Verify_Clock(struct mtk_dp *mtk_dp)
 	Ls_clk *= 27;
 
 	pix_clk = m * Ls_clk / n;
-	pr_info("DPTX calc pixel clock = %d MHz, dp_intf clock = %dMHz\n",
+	dev_info(mtk_dp->dev,"DPTX calc pixel clock = %d MHz, dp_intf clock = %dMHz\n",
 		pix_clk, pix_clk/4);
 }
 
@@ -158,7 +158,7 @@ void mhal_DPTx_Set_Efuse_Value(struct mtk_dp *mtk_dp)
 #if 0
 	u32 efuse = get_devinfo_with_index(114);
 
-	pr_info("DPTX Efuse(0x11C101B8) = 0x%x\n", efuse);
+	dev_info(mtk_dp->dev,"DPTX Efuse(0x11C101B8) = 0x%x\n", efuse);
 
 	if (efuse) {
 		msWrite4ByteMask(mtk_dp, 0x0008, efuse >> 1, BITMASK(23 : 20));
@@ -178,13 +178,13 @@ void mhal_DPTx_Set_VideoInterlance(struct mtk_dp *mtk_dp, bool bENABLE)
 			BIT6|BIT5, BIT6|BIT5);
 		msWriteByteMask(mtk_dp, REG_3368_DP_ENCODER1_P0 + 1,
 			0, BIT5|BIT4);
-		pr_info("DPTX imode force-ov\n");
+		dev_info(mtk_dp->dev,"DPTX imode force-ov\n");
 	} else {
 		msWriteByteMask(mtk_dp, REG_3030_DP_ENCODER0_P0 + 1,
 			BIT6, BIT6|BIT5);
 		msWriteByteMask(mtk_dp, REG_3368_DP_ENCODER1_P0 + 1,
 			BIT4, BIT5|BIT4);
-		pr_info("DPTX pmode force-ov\n");
+		dev_info(mtk_dp->dev,"DPTX pmode force-ov\n");
 	}
 }
 
@@ -236,7 +236,7 @@ void mhal_DPTx_SetMSA(struct mtk_dp *mtk_dp)
 		DPTX_TBL->Vbp + DPTX_TBL->Vsw);
 	msWrite2Byte(mtk_dp, REG_3178_DP_ENCODER0_P0, DPTX_TBL->Vde);
 
-	pr_info("MSA:Htt=%d Vtt=%d Hact=%d Vact=%d, fps=%d\n",
+	dev_info(mtk_dp->dev,"MSA:Htt=%d Vtt=%d Hact=%d Vact=%d, fps=%d\n",
 			DPTX_TBL->Htt, DPTX_TBL->Vtt,
 			DPTX_TBL->Hde, DPTX_TBL->Vde, DPTX_TBL->FrameRate);
 }
@@ -1946,12 +1946,6 @@ void mhal_DPTx_PHYSetting(struct mtk_dp *mtk_dp)
 	msWrite4Byte(mtk_dp, 0x134C, 0x00000008);
 	msWrite4Byte(mtk_dp, 0x144C, 0x00000008);
 
-	pr_info("%s", __func__);
-	pr_info("mtk_dp_read[0x%04X] = 0x%08X\n", 0x1138, mtk_dp_read(mtk_dp, 0x1138));
-	pr_info("mtk_dp_read[0x%04X] = 0x%08X\n", 0x1238, mtk_dp_read(mtk_dp, 0x1238));
-	pr_info("mtk_dp_read[0x%04X] = 0x%08X\n", 0x1338, mtk_dp_read(mtk_dp, 0x1338));
-	pr_info("mtk_dp_read[0x%04X] = 0x%08X\n", 0x1438, mtk_dp_read(mtk_dp, 0x1438));
-
 	msWrite4ByteMask(mtk_dp, 0x3690, BIT8, BIT8);
 }
 
@@ -2274,6 +2268,7 @@ void mhal_DPTx_VideoMute(struct mtk_dp *mtk_dp, bool bENABLE)
 		else
 			mtk_dp_atf_call(DP_ATF_VIDEO_UNMUTE, 0);
 	}
+	pr_info("mute = 0x%x\n", readl(mtk_dp->regs + 0x402c));
 }
 
 void mhal_DPTx_VideoMuteSW(struct mtk_dp *mtk_dp, bool bENABLE)

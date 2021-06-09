@@ -75,7 +75,6 @@ static bool mdrv_DPTx_AuxWrite_Bytes(struct mtk_dp *mtk_dp, u8 ubCmd,
 		ubRetryLimit--;
 		if (!bReplyStatus) {
 			udelay(50);
-			pr_info("Retry Num = %d\n", ubRetryLimit);
 		} else
 			return true;
 	} while (ubRetryLimit > 0);
@@ -119,13 +118,6 @@ static bool mdrv_DPTx_AuxWrite_DPCD(struct mtk_dp *mtk_dp, u8 ubCmd,
 				pData);
 	}
 
-	if (0) {//mtk_dp_debug_get()) {
-		pr_info("Aux write cmd = %d, addr = 0x%x, len = %ld, %s\n",
-			ubCmd, usDPCDADDR, ubLength, bRet ? "Success" : "Fail");
-		for (loop = 0; loop < ubLength; loop++)
-			pr_info("DPCD%lx:0x%x", usDPCDADDR + loop, pData[loop]);
-	}
-
 	return bRet;
 }
 
@@ -149,7 +141,6 @@ static bool mdrv_DPTx_AuxRead_Bytes(struct mtk_dp *mtk_dp, u8 ubCmd,
 					usDPCDADDR, ubLength, pData);
 		if (!bReplyStatus) {
 			udelay(50);
-			pr_info("Retry Num = %d\n", ubRetryLimit);
 		} else
 			return true;
 
@@ -194,19 +185,11 @@ static bool mdrv_DPTx_AuxRead_DPCD(struct mtk_dp *mtk_dp, u8 ubCmd,
 				ubLength,
 				pRxBuf);
 
-	if (0) {//mtk_dp_debug_get()) {
-		pr_info("Aux Read cmd = %d, addr = 0x%x, len = %ld, %s\n",
-			ubCmd, usDPCDADDR, ubLength, bRet ? "Success" : "Fail");
-		for (loop = 0; loop < ubLength; loop++)
-			pr_info("DPCD%lx:0x%x", usDPCDADDR + loop, pRxBuf[loop]);
-	}
-
 	return bRet;
 }
 
 static void mdrv_DPTx_InitVariable(struct mtk_dp *mtk_dp)
 {
-	pr_info("%s", __func__);
 	mtk_dp->training_info.ubDPSysVersion = DP_VERSION_14;
 	mtk_dp->training_info.ubLinkRate = DP_LINKRATE_HBR2;
 	mtk_dp->training_info.ubLinkLaneCount = DP_LANECOUNT_4;
@@ -605,8 +588,6 @@ static void mdrv_DPTx_StopSentSDP(struct mtk_dp *mtk_dp)
 
 	mhal_DPTx_SPKG_VSC_EXT_VESA(mtk_dp, false, 0x00, NULL);
 	mhal_DPTx_SPKG_VSC_EXT_CEA(mtk_dp, false, 0x00, NULL);
-
-	pr_info("%s", __func__);
 }
 
 int mdrv_DPTx_HPD_HandleInThread(struct mtk_dp *mtk_dp)
@@ -1019,9 +1000,10 @@ static bool mdrv_DPTx_CheckSinkCap(struct mtk_dp *mtk_dp)
 {
 	u8 bTempBuffer[0x10];
 
-	if (!mhal_DPTx_GetHPDPinLevel(mtk_dp))
+	if (!mhal_DPTx_GetHPDPinLevel(mtk_dp)) {
+		pr_info("HPD is low\n");
 		return false;
-
+	}
 	memset(bTempBuffer, 0x0, sizeof(bTempBuffer));
 
 	bTempBuffer[0x0] = 0x1;
@@ -1107,7 +1089,6 @@ static bool mdrv_DPTx_CheckSinkCap(struct mtk_dp *mtk_dp)
 	return true;
 }
 
-unsigned int force_ch, force_fs, force_len;
 static unsigned int mdrv_DPTx_getAudioCaps(struct mtk_dp *mtk_dp)
 {
 	struct cea_sad *sads;
@@ -1336,7 +1317,7 @@ static int mdrv_DPTx_Training_Handler(struct mtk_dp *mtk_dp)
 		mtk_dp->edid = mtk_dp_handle_edid(mtk_dp);
 		if (mtk_dp->edid) {
 			pr_info("READ EDID done!\n");
-			if (1){//mtk_dp_debug_get()) {
+			if (0){//mtk_dp_debug_get()) {
 				u8 *raw_edid = (u8 *)mtk_dp->edid;
 
 				pr_info("Raw EDID:\n");
@@ -1818,12 +1799,11 @@ static int mtk_dp_dt_parse_pdata(struct mtk_dp *mtk_dp,
 	if (IS_ERR(mtk_dp->dp_tx_clk)) {
 		ret = PTR_ERR(mtk_dp->dp_tx_clk);
 		dev_err(dev, "Failed to get dptx clock: %d\n", ret);
-		//goto error;
 		mtk_dp->dp_tx_clk = NULL;
 	}
 
 	pr_info("reg and clock get success!\n");
-//error:
+
 	return 0;
 }
 
@@ -1837,8 +1817,6 @@ static enum drm_connector_status mtk_dp_conn_detect(struct drm_connector *conn,
 {
 	struct mtk_dp *mtk_dp = mtk_dp_ctx_from_conn(conn);
 
-	pr_info("%s", __func__);
-
 	return ((mhal_DPTx_GetHPDPinLevel(mtk_dp)) ? connector_status_connected :
 		connector_status_disconnected);
 }
@@ -1846,11 +1824,15 @@ static enum drm_connector_status mtk_dp_conn_detect(struct drm_connector *conn,
 static enum drm_connector_status mtk_dp_bdg_detect(struct drm_bridge *bridge)
 {
 	struct mtk_dp *mtk_dp = dp_from_bridge(bridge);
+	enum drm_connector_status ret;
 
-	pr_info("%s", __func__);
+	ret = mhal_DPTx_GetHPDPinLevel(mtk_dp) ? connector_status_connected :
+			connector_status_disconnected;
 
-	return ((mhal_DPTx_GetHPDPinLevel(mtk_dp)) ? connector_status_connected :
-		connector_status_disconnected);
+	if (mtk_dp->driver_data && mtk_dp->driver_data->is_edp)
+		return connector_status_connected;
+	else
+		return ret;
 }
 
 static void mtk_dp_conn_destroy(struct drm_connector *conn)
@@ -2073,7 +2055,6 @@ static void mtk_dp_HPDInterruptSet(struct mtk_dp *mtk_dp, int bstatus)
 
 void mtk_dp_poweroff(struct mtk_dp *mtk_dp)
 {
-	pr_info("%s", __func__);
 	mutex_lock(&mtk_dp->dp_lock);
 	if (mtk_dp->disp_status == DPTX_DISP_NONE) {
 		pr_info("DPTX has been powered off\n");
@@ -2088,7 +2069,6 @@ void mtk_dp_poweroff(struct mtk_dp *mtk_dp)
 
 void mtk_dp_poweron(struct mtk_dp *mtk_dp)
 {
-	pr_info("%s", __func__);
 	mutex_lock(&mtk_dp->dp_lock);
 	mtk_dp->disp_status = DPTX_DISP_RESUME;
 	if (mtk_dp->bPowerOn) {
@@ -2107,8 +2087,6 @@ static int mtk_dp_bridge_attach(struct drm_bridge *bridge,
 	struct mtk_dp *mtk_dp = dp_from_bridge(bridge);
 	int ret;
 
-	pr_info("%s, %d, mtk_dp 0x%p, flag = %d\n", __func__, __LINE__, mtk_dp, flags);
-
 	mtk_dp_poweron(mtk_dp);
 
 	if (mtk_dp->next_bridge) {
@@ -2126,8 +2104,6 @@ static int mtk_dp_bridge_attach(struct drm_bridge *bridge,
 	}
 
 	mtk_dp->drm_dev = bridge->dev;
-
-	pr_info("%s, %d, mtk_dp 0x%p\n", __func__, __LINE__, mtk_dp);
 
 	ret = drm_connector_init(bridge->dev, &mtk_dp->conn, &mtk_dp_connector_funcs,
 				 DRM_MODE_CONNECTOR_DisplayPort);
@@ -2148,9 +2124,6 @@ static int mtk_dp_bridge_attach(struct drm_bridge *bridge,
 		return ret;
 	}
 
-
-	pr_info("end\n");
-
 	return 0;
 }
 
@@ -2158,16 +2131,12 @@ static bool mtk_dp_bridge_mode_fixup(struct drm_bridge *bridge,
 				       const struct drm_display_mode *mode,
 				       struct drm_display_mode *adjusted_mode)
 {
-	pr_info("%s", __func__);
-
 	return true;
 }
 
 static void mtk_dp_bridge_disable(struct drm_bridge *bridge)
 {
 	struct mtk_dp *mtk_dp = dp_from_bridge(bridge);
-
-	pr_info("%s", __func__);
 
 	if (!mtk_dp->enabled)
 		return;
@@ -2179,14 +2148,10 @@ static void mtk_dp_bridge_post_disable(struct drm_bridge *bridge)
 {
 	struct mtk_dp *mtk_dp = dp_from_bridge(bridge);
 
-	pr_info("start\n");
-
 	if (!mtk_dp->powered)
 		return;
 
 	mtk_dp->powered = false;
-
-	pr_info("end\n");
 }
 
 static void mtk_dp_bridge_mode_set(struct drm_bridge *bridge,
@@ -2195,16 +2160,12 @@ static void mtk_dp_bridge_mode_set(struct drm_bridge *bridge,
 {
 	struct mtk_dp *mtk_dp = dp_from_bridge(bridge);
 
-	pr_info("%s", __func__);
-
 	drm_mode_copy(&mtk_dp->mode, adjusted_mode);
 }
 
 static void mtk_dp_bridge_pre_enable(struct drm_bridge *bridge)
 {
 	struct mtk_dp *mtk_dp = dp_from_bridge(bridge);
-
-	pr_info("%s", __func__);
 
 	mdrv_DPTx_CheckSinkCap(mtk_dp);
 
@@ -2216,10 +2177,6 @@ static void mtk_dp_bridge_enable(struct drm_bridge *bridge)
 	struct mtk_dp *mtk_dp = dp_from_bridge(bridge);
 	int ret = DPTX_NOERR;
 	int i;
-
-	pr_info("%s", __func__);
-
-	pr_info("%s +", __func__);
 
 	mdrv_DPTx_CheckSinkCap(mtk_dp);
 	mtk_dp->edid = mtk_dp_handle_edid(mtk_dp);
@@ -2247,8 +2204,6 @@ static void mtk_dp_bridge_enable(struct drm_bridge *bridge)
 	}
 
 	mtk_dp->enabled = true;
-
-	pr_info("%s -", __func__);
 }
 
 static const struct drm_bridge_funcs mtk_dp_bridge_funcs = {
@@ -2358,7 +2313,7 @@ static int mtk_drm_dp_remove(struct platform_device *pdev)
 
 	if (!IS_ERR(mtk_dp->task)) {
 		ret = kthread_stop(mtk_dp->task);
-		pr_info("=====thread function has stop %ds======\n", ret);
+		pr_info( "=====thread function has stop %ds======\n", ret);
 	}
 
 	return 0;
@@ -2368,8 +2323,6 @@ static int mtk_drm_dp_remove(struct platform_device *pdev)
 static int mtk_dp_suspend(struct device *dev)
 {
 	struct mtk_dp *mtk_dp = dev_get_drvdata(dev);
-
-	pr_info("%s", __func__);
 
 	mutex_lock(&mtk_dp->dp_lock);
 	if (mtk_dp->bPowerOn) {
@@ -2384,7 +2337,6 @@ static int mtk_dp_suspend(struct device *dev)
 
 static int mtk_dp_resume(struct device *dev)
 {
-	pr_info("%s", __func__);
 	return 0;
 }
 #endif
