@@ -24,6 +24,8 @@
 	aliases {
 		dpi1 = &disp_dpi1;
 		merge5 = &merge5;
+		dp-intf0 = &dp_intf0;
+		dp-intf1 = &dp_intf1;
 	};
 
 	clocks {
@@ -2719,7 +2721,7 @@
 		};
 
 		dp_intf1: dp_intf1@1c113000 {
-			compatible = "mediatek,mt6885-dp-intf";
+			compatible = "mediatek,mt8195-dpintf";
 			reg = <0 0x1c113000 0 0x1000>;
 			interrupts = <GIC_SPI 513 IRQ_TYPE_LEVEL_HIGH 0>;
 			power-domains = <&spm MT8195_POWER_DOMAIN_VDOSYS1>;
@@ -2814,15 +2816,16 @@
 
 		edp_tx: edp_tx@1c500000 {
 			status = "disabled";
-			compatible = "mediatek,mt8195-dp_tx";
+			compatible = "mediatek,mt8195-edp_tx";
 			reg = <0 0x1c500000 0 0x8000>;
 			power-domains = <&spm MT8195_POWER_DOMAIN_EPD_TX>;
 			interrupts = <GIC_SPI 676 IRQ_TYPE_LEVEL_HIGH 0>;
 		};
 
 		dp_tx: dp_tx@1c600000 {
-			compatible = "mediatek,mt6885-dp_tx";
+			compatible = "mediatek,mt8195-dp_tx";
 			reg = <0 0x1c600000 0 0x8000>;
+			power-domains = <&spm MT8195_POWER_DOMAIN_DP_TX>;
 			interrupts = <GIC_SPI 458 IRQ_TYPE_LEVEL_HIGH 0>;
 			status = "disabled";
 		};
