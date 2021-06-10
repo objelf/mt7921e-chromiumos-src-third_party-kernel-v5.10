@@ -800,6 +800,7 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_pin>;
+	i2c-scl-internal-delay-ns = <12500>;
 
 	touchpad@15 {
 		compatible = "elan,ekth3000";
