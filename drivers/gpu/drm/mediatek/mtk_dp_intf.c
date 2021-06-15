@@ -558,8 +558,6 @@ static int mtk_dpintf_power_on(struct mtk_dpintf *dpintf)
 	dev_info(dpintf->dev, "%s :dpintf->hf_fmm_ck =  %ld\n", __func__, clk_get_rate(dpintf->hf_fmm_ck));
 	dev_info(dpintf->dev, "%s :dpintf->hf_fdp_ck =  %ld\n", __func__, clk_get_rate(dpintf->hf_fdp_ck));
 
-	mtk_dpintf_enable(dpintf);
-
 	pr_info("%s -", __func__);
 	return 0;
 
@@ -647,6 +645,8 @@ static int mtk_dpintf_set_display_mode(struct mtk_dpintf *dpintf,
 
 	mtk_dpintf_mask(dpintf, DPINTF_CON, INPUT_2P_EN, INPUT_2P_EN);
 	mtk_dpintf_sw_reset(dpintf, false);
+
+	mtk_dpintf_enable(dpintf);
 
 	return 0;
 }
