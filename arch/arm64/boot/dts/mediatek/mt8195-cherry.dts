@@ -130,6 +130,10 @@
 	status = "okay";
 };
 
+&auxadc {
+	status = "okay";
+};
+
 &dp_intf0 {
 	status = "okay";
 	ports {
