@@ -398,11 +398,22 @@
 
 				power-domain@MT8195_POWER_DOMAIN_ADSP {
 					reg = <MT8195_POWER_DOMAIN_ADSP>;
-					clocks = <&topckgen CLK_TOP_ADSP_SEL>;
-					clock-names = "adsp";
+					clocks = <&topckgen CLK_TOP_ADSP_SEL>,
+						 <&topckgen CLK_TOP_AUDIO_LOCAL_BUS_SEL>;
+					clock-names = "adsp", "adsp1";
 					#address-cells = <1>;
 					#size-cells = <0>;
+					mediatek,infracfg = <&infracfg_ao>;
 					#power-domain-cells = <1>;
+
+					audio_asrc@MT8195_POWER_DOMAIN_AUDIO_ASRC {
+						reg = <MT8195_POWER_DOMAIN_AUDIO_ASRC>;
+						clocks = <&topckgen CLK_TOP_AUDIO_LOCAL_BUS_SEL>,
+							 <&infracfg_ao CLK_INFRA_AO_AUDIO_26M_B>;
+						clock-names = "audio_asrc", "audio_asrc1";
+						mediatek,infracfg = <&infracfg_ao>;
+						#power-domain-cells = <0>;
+					};
 
 					power-domain@MT8195_POWER_DOMAIN_AUDIO {
 						reg = <MT8195_POWER_DOMAIN_AUDIO>;
@@ -415,16 +426,6 @@
 						mediatek,infracfg = <&infracfg_ao>;
 						#power-domain-cells = <0>;
 					};
-				};
-
-				power-domain@MT8195_POWER_DOMAIN_AUDIO_ASRC {
-					reg = <MT8195_POWER_DOMAIN_AUDIO_ASRC>;
-					clocks = <&topckgen CLK_TOP_AUDIO_LOCAL_BUS_SEL>,
-						 <&topckgen CLK_TOP_ASM_L_SEL>,
-						 <&infracfg_ao CLK_INFRA_AO_AUDIO_26M_B>;
-					clock-names = "audio_asrc", "audio_asrc1", "audio_asrc2";
-					mediatek,infracfg = <&infracfg_ao>;
-					#power-domain-cells = <0>;
 				};
 
 				power-domain@MT8195_POWER_DOMAIN_NNA {
