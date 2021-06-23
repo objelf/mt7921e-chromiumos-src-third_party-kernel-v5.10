@@ -367,6 +367,7 @@
 };
 
 &sound {
+	mediatek,dptx-codec = <&dp_tx>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&aud_pins_default>;
 	status = "okay";
