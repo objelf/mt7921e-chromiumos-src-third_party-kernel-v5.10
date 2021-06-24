@@ -59,7 +59,7 @@ build_one() {
 		elif [[ "${arch}" == "x86_64" ]]; then
 			prefix=x86_64
 			compiler=clang
-			cross="${prefix}-cros-linux-gnu"
+			cross="${prefix}-pc-linux-gnu"
 		elif [[ "${arch}" == "armel" ]]; then
 			prefix=armv7a
 			compiler=clang
