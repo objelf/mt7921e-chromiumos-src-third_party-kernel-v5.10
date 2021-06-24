@@ -31,4 +31,12 @@ config DRM_MEDIATEK_HDMI
 	select CEC_NOTIFIER
 	help
 	  DRM/KMS HDMI driver for Mediatek SoCs
+
+config MTK_DPTX_SUPPORT
+	tristate "DRM DPTX Support for Mediatek SoCs"
+	depends on DRM_MEDIATEK
+	select GENERIC_PHY
+	help
+	  DRM/KMS DPTX driver for Mediatek SoCs
+
 source "drivers/gpu/drm/mediatek/mediatek_v2/Kconfig"
