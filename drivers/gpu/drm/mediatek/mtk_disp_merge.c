@@ -488,22 +488,6 @@ static irqreturn_t mtk_disp_merge_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t mtk_disp_merge_irq_handler(int irq, void *dev_id)
-{
-	struct mtk_disp_merge *priv = dev_id;
-
-	/* Clear frame completion interrupt */
-	writel(0x1, priv->regs + DISP_REG_MERGE_CFG2_2);
-	writel(0x0, priv->regs + DISP_REG_MERGE_CFG2_2);
-
-	if (!priv->vblank_cb)
-		return IRQ_NONE;
-
-	priv->vblank_cb(priv->vblank_cb_data);
-
-	return IRQ_HANDLED;
-}
-
 static const struct component_ops mtk_disp_merge_component_ops = {
 	.bind	= mtk_disp_merge_bind,
 	.unbind = mtk_disp_merge_unbind,
