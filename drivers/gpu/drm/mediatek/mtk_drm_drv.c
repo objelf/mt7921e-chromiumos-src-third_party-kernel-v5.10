@@ -171,7 +171,20 @@ static const enum mtk_ddp_comp_id mt8195_mtk_ddp_ext[] = {
 	DDP_COMPONENT_ETHDR,
 	DDP_COMPONENT_MERGE5,
 	//DDP_COMPONENT_DP_INTF1,
-	DDP_COMPONENT_DPI1,
+	//DDP_COMPONENT_DPI1,
+};
+
+static const enum mtk_ddp_comp_id mt8195_mtk_ddp_ext_routes_0[] = {
+	DDP_COMPONENT_DP_INTF1
+};
+
+static const enum mtk_ddp_comp_id mt8195_mtk_ddp_ext_routes_1[] = {
+	DDP_COMPONENT_DPI1
+};
+
+static const struct mtk_mmsys_route mt8195_mtk_ddp_ext_routes[] = {
+	{ARRAY_SIZE(mt8195_mtk_ddp_ext_routes_0), mt8195_mtk_ddp_ext_routes_0},
+	{ARRAY_SIZE(mt8195_mtk_ddp_ext_routes_1), mt8195_mtk_ddp_ext_routes_1}
 };
 
 static const struct mtk_mmsys_driver_data mt2701_mmsys_driver_data = {
@@ -222,6 +235,8 @@ static const struct mtk_mmsys_driver_data mt8195_mmsys_driver_data = {
 	.main_len = ARRAY_SIZE(mt8195_mtk_ddp_main),
 	.ext_path = mt8195_mtk_ddp_ext,
 	.ext_len = ARRAY_SIZE(mt8195_mtk_ddp_ext),
+	.ext_conn_routes = mt8195_mtk_ddp_ext_routes,
+	.ext_conn_routes_num = ARRAY_SIZE(mt8195_mtk_ddp_ext_routes),
 	.indep_sub_disp_path = BIT(1),
 };
 
@@ -272,17 +287,18 @@ static int mtk_drm_kms_init(struct drm_device *drm)
 	 * OVL0 -> COLOR0 -> AAL -> OD -> RDMA0 -> UFOE -> DSI0 ...
 	 */
 	ret = mtk_drm_crtc_create(drm, private->data->main_path,
-				  private->data->main_len);
+				  private->data->main_len, NULL, 0);
 	if (ret < 0)
 		goto err_component_unbind;
 	/* ... and OVL1 -> COLOR1 -> GAMMA -> RDMA1 -> DPI0. */
 	ret = mtk_drm_crtc_create(drm, private->data->ext_path,
-				  private->data->ext_len);
+				  private->data->ext_len, private->data->ext_conn_routes,
+				  private->data->ext_conn_routes_num);
 	if (ret < 0)
 		goto err_component_unbind;
 
 	ret = mtk_drm_crtc_create(drm, private->data->third_path,
-				  private->data->third_len);
+				  private->data->third_len, NULL, 0);
 	if (ret < 0)
 		goto err_component_unbind;
 

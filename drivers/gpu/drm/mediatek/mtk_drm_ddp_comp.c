@@ -288,6 +288,7 @@ static const struct mtk_ddp_comp_funcs ddp_dither = {
 static const struct mtk_ddp_comp_funcs ddp_dpi = {
 	.start = mtk_dpi_start,
 	.stop = mtk_dpi_stop,
+	.encoder_index = mtk_dpi_encoder_index,
 };
 
 static const struct mtk_ddp_comp_funcs ddp_dsi = {
@@ -367,6 +368,7 @@ static const struct mtk_ddp_comp_funcs ddp_ufoe = {
 static const struct mtk_ddp_comp_funcs ddp_dp_intf = {
 	.start = mtk_dpintf_start,
 	.stop = mtk_dpintf_stop,
+	.encoder_index = mtk_dpintf_encoder_index,
 };
 #endif
 
@@ -483,6 +485,24 @@ static bool mtk_drm_find_comp_in_ddp(struct device *dev,
 	return false;
 }
 
+static bool mtk_drm_find_comp_in_ddp_conn_path(struct device *dev,
+				     const struct mtk_mmsys_route *routes,
+				     unsigned int routes_num,
+				     struct mtk_ddp_comp *ddp_comp)
+{
+	unsigned int i;
+	bool ret = false;
+
+	if (routes == NULL)
+		return false;
+
+	for (i = 0U; i < routes_num; i++)
+		ret |= mtk_drm_find_comp_in_ddp(dev, routes[i].route_ddp,
+			routes[i].route_len, ddp_comp);
+
+	return ret;
+}
+
 int mtk_ddp_comp_get_id(struct device_node *node,
 			enum mtk_ddp_comp_type comp_type)
 {
@@ -509,6 +529,10 @@ unsigned int mtk_drm_find_possible_crtc_by_comp(struct drm_device *drm,
 		ret = BIT(0);
 	else if (mtk_drm_find_comp_in_ddp(dev, private->data->ext_path,
 					  private->data->ext_len, private->ddp_comp))
+		ret = BIT(1);
+	else if (mtk_drm_find_comp_in_ddp_conn_path(dev,
+					  private->data->ext_conn_routes,
+					  private->data->ext_conn_routes_num, private->ddp_comp))
 		ret = BIT(1);
 	else if (mtk_drm_find_comp_in_ddp(dev, private->data->third_path,
 					  private->data->third_len, private->ddp_comp))

@@ -712,6 +712,15 @@ void mtk_dpintf_stop(struct device *dev)
 	mtk_dpintf_power_off(dpintf);
 }
 
+int mtk_dpintf_encoder_index(struct device *dev)
+{
+	struct mtk_dpintf *dpintf = dev_get_drvdata(dev);
+	int encoder_index = drm_encoder_index(&dpintf->encoder);
+
+	dev_dbg(dev, "encoder index:%d", encoder_index);
+	return encoder_index;
+}
+
 static int mtk_dpintf_bind(struct device *dev, struct device *master, void *data)
 {
 	struct mtk_dpintf *dpintf = dev_get_drvdata(dev);

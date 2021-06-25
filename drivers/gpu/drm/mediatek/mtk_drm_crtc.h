@@ -137,8 +137,15 @@ struct mtk_drm_crtc {
 	struct device			*mmsys_dev;
 	struct mtk_mutex		*mutex;
 	struct mtk_crtc_ddp_ctx ddp_ctx[DDP_MODE_NR];
+
+	unsigned int            ddp_comp_nr_ori;
+	unsigned int			max_ddp_comp_nr;
 	unsigned int			ddp_comp_nr;
 	struct mtk_ddp_comp 	**ddp_comp;
+
+	unsigned int			conn_route_nr;
+	const struct mtk_mmsys_route *conn_routes;
+
 	unsigned int ddp_mode;
 
 	const struct mtk_crtc_path_data *path_data;
@@ -154,7 +161,9 @@ struct mtk_drm_crtc {
 void mtk_drm_crtc_commit(struct drm_crtc *crtc);
 int mtk_drm_crtc_create(struct drm_device *drm_dev,
 			const enum mtk_ddp_comp_id *path,
-			unsigned int path_len);
+			unsigned int path_len,
+			const struct mtk_mmsys_route *conn_routes,
+			unsigned int conn_routes_num);
 int mtk_drm_crtc_plane_check(struct drm_crtc *crtc, struct drm_plane *plane,
 			     struct mtk_plane_state *state);
 void mtk_drm_crtc_async_update(struct drm_crtc *crtc, struct drm_plane *plane,

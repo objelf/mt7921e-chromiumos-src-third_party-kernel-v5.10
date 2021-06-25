@@ -32,6 +32,7 @@ void mtk_dither_set_common(void __iomem *regs, struct cmdq_client_reg *cmdq_reg,
 
 void mtk_dpi_start(struct device *dev);
 void mtk_dpi_stop(struct device *dev);
+int mtk_dpi_encoder_index(struct device *dev);
 
 void mtk_dsi_ddp_start(struct device *dev);
 void mtk_dsi_ddp_stop(struct device *dev);
@@ -112,6 +113,7 @@ void mtk_dsc_stop(struct device *dev);
 #ifdef CONFIG_MTK_DPTX_SUPPORT
 void mtk_dpintf_start(struct device *dev);
 void mtk_dpintf_stop(struct device *dev);
+int mtk_dpintf_encoder_index(struct device *dev);
 #endif
 
 int mtk_pseudo_ovl_clk_enable(struct device *dev);

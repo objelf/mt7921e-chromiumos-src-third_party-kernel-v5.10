@@ -71,6 +71,7 @@ struct mtk_ddp_comp_funcs {
 	void (*bgclr_in_off)(struct device *dev);
 	void (*ctm_set)(struct device *dev,
 			struct drm_crtc_state *state);
+	int (*encoder_index)(struct device *dev);
 };
 
 struct mtk_ddp_comp {
@@ -79,6 +80,7 @@ struct mtk_ddp_comp {
 	enum mtk_ddp_comp_id id;
 	struct mtk_drm_crtc *mtk_crtc;
 	const struct mtk_ddp_comp_funcs *funcs;
+	int encoder_index;
 };
 
 static inline int mtk_ddp_comp_clk_enable(struct mtk_ddp_comp *comp)
@@ -195,6 +197,12 @@ static inline void mtk_ddp_ctm_set(struct mtk_ddp_comp *comp,
 {
 	if (comp->funcs && comp->funcs->ctm_set)
 		comp->funcs->ctm_set(comp->dev, state);
+}
+
+static inline void mtk_ddp_comp_encoder_index_set(struct mtk_ddp_comp *comp)
+{
+	if (comp->funcs && comp->funcs->encoder_index)
+		comp->encoder_index = comp->funcs->encoder_index(comp->dev);
 }
 
 int mtk_ddp_comp_get_id(struct device_node *node,
