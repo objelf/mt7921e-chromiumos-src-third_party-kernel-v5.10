@@ -750,13 +750,16 @@
 		cec: cec@10014000 {
 			compatible = "mediatek,mt8195-cec";
 			reg = <0 0x10014000 0 0x100>;
-			interrupts = <GIC_SPI 680 IRQ_TYPE_LEVEL_HIGH>;
-			//clocks = <&infracfg_ao CLK_INFRA_AO_CEC_66M_H>,
-			//	 <&infracfg_ao CLK_INFRA_AO_CEC_66M_B>,
-			//	 <&infracfg_ao CLK_INFRA_AO_HDMI_32K>;
-			//clock-names = "cec_66m_h",
-			//	      "cec_66m_b",
-			//	      "hdmi_32k";
+			interrupts = <GIC_SPI 680 IRQ_TYPE_LEVEL_HIGH 0>;
+			clocks = <&infracfg_ao CLK_INFRA_AO_CEC_66M_H>,
+				 <&infracfg_ao CLK_INFRA_AO_CEC_66M_B>,
+				 <&infracfg_ao CLK_INFRA_AO_HDMI_32K>,
+				 <&infracfg_ao CLK_INFRA_AO_HDMI_26M>;
+			clock-names = "cec_66m_h",
+				      "cec_66m_b",
+				      "hdmi_32k",
+				      "hdmi_26m";
+			hdmi = <&hdmi0>;
 		};
 
 		systimer: timer@10017000 {
@@ -1629,14 +1632,8 @@
 		hdmi_phy: hdmi-phy@11d5f000 {
 			compatible = "mediatek,mt8195-hdmi-phy";
 			reg = <0 0x11d5f000 0 0x100>;
-			clocks = <&topckgen CLK_TOP_HDMI_XTAL_SEL>,
-				 <&infracfg_ao CLK_INFRA_AO_HDMI_26M>,
-				 <&apmixedsys CLK_APMIXED_HDMIPLL1>,
-				 <&apmixedsys CLK_APMIXED_HDMIPLL2>;
-			clock-names = "hdmi_xtal_sel",
-				      "hdmi_26m",
-				      "hdmi_pll1",
-				      "hdmi_pll2";
+			clocks = <&topckgen CLK_TOP_HDMI_XTAL_SEL>;
+			clock-names = "hdmi_xtal_sel";
 			clock-output-names = "hdmi_txpll";
 			#clock-cells = <0>;
 			#phy-cells = <0>;
@@ -2872,15 +2869,21 @@
 			compatible = "mediatek,mt8195-hdmi";
 			reg = <0 0x1c300000 0 0x1000>;
 			power-domains = <&spm MT8195_POWER_DOMAIN_HDMI_TX>;
-			clocks = <&topckgen CLK_TOP_HDCP_SEL>,
-					<&topckgen CLK_TOP_HDCP_24M_SEL>,
-					<&topckgen CLK_TOP_HD20_HDCP_C_SEL>,
-					<&vppsys1 CLK_VPP1_VPP_SPLIT_HDMI>;
-			clock-names = "hdcp_sel",
+			clocks = <&topckgen CLK_TOP_UNIVPLL_D6_D4>,
+				 <&topckgen CLK_TOP_MSDCPLL_D2>,
+				 <&topckgen CLK_TOP_HDMI_APB_SEL>,
+				 <&topckgen CLK_TOP_UNIVPLL_D4_D8>,
+				 <&topckgen CLK_TOP_HDCP_SEL>,
+				 <&topckgen CLK_TOP_HDCP_24M_SEL>,
+				 <&vppsys1 CLK_VPP1_VPP_SPLIT_HDMI>;
+			clock-names = "univpll_d6_d4",
+				      "msdcpll_d2",
+				      "hdmi_apb_sel",
+				      "univpll_d4_d8",
+				      "hdcp_sel",
 				      "hdcp24_sel",
-				      "hd20_hdcp_sel",
 				      "split_hdmi";
-			interrupts = <GIC_SPI 677 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 677 IRQ_TYPE_LEVEL_HIGH 0>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&hdmi_pin>;
 			phys = <&hdmi_phy>;
