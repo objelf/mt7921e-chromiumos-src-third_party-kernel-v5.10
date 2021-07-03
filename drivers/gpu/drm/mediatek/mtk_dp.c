@@ -2080,13 +2080,7 @@ void mtk_dp_poweroff(struct mtk_dp *mtk_dp)
 	dev_info(mtk_dp->dev, "%s\n", __func__);
 
 	mutex_lock(&mtk_dp->dp_lock);
-	if (mtk_dp->disp_status == DPTX_DISP_NONE) {
-		dev_info(mtk_dp->dev, "DPTX has been powered off\n");
-		mutex_unlock(&mtk_dp->dp_lock);
-		return;
-	}
 
-	mtk_dp->disp_status = DPTX_DISP_SUSPEND;
 	mtk_dp_HPDInterruptSet(mtk_dp, HPD_DISCONNECT);
 	mutex_unlock(&mtk_dp->dp_lock);
 }
@@ -2096,12 +2090,6 @@ void mtk_dp_poweron(struct mtk_dp *mtk_dp)
 	dev_info(mtk_dp->dev, "%s\n", __func__);
 
 	mutex_lock(&mtk_dp->dp_lock);
-	mtk_dp->disp_status = DPTX_DISP_RESUME;
-	if (mtk_dp->bPowerOn) {
-		dev_info(mtk_dp->dev, "DPTX has been powered on\n");
-		mutex_unlock(&mtk_dp->dp_lock);
-		return;
-	}
 
 	mtk_dp_HPDInterruptSet(mtk_dp, HPD_CONNECT);
 	mutex_unlock(&mtk_dp->dp_lock);
@@ -2270,7 +2258,6 @@ static int mtk_drm_dp_probe(struct platform_device *pdev)
 	mtk_dp->dev = dev;
 	mtk_dp->priv = mtk_priv;
 	mtk_dp->bUeventToHwc = false;
-	mtk_dp->disp_status = DPTX_DISP_NONE;
 
 	irq_num = platform_get_irq(pdev, 0);
 	if (irq_num < 0) {
@@ -2334,6 +2321,9 @@ static int mtk_drm_dp_probe(struct platform_device *pdev)
 			| DRM_BRIDGE_OP_HPD | DRM_BRIDGE_OP_MODES;
 	drm_bridge_add(&mtk_dp->bridge);
 
+	pm_runtime_enable(dev);
+	pm_runtime_get_sync(dev);
+
 	platform_set_drvdata(pdev, mtk_dp);
 
 	dev_err(&pdev->dev, "probe done\n");
@@ -2356,6 +2346,8 @@ static int mtk_drm_dp_remove(struct platform_device *pdev)
 		dev_info(mtk_dp->dev,  "=====thread function has stop %ds======\n", ret);
 	}
 
+	pm_runtime_disable(&pdev->dev);
+
 	return 0;
 }
 
@@ -2366,19 +2358,24 @@ static int mtk_dp_suspend(struct device *dev)
 
 	dev_info(mtk_dp->dev, "%s\n", __func__);
 
-	mutex_lock(&mtk_dp->dp_lock);
-	if (mtk_dp->bPowerOn) {
-		mtk_dp->disp_status = DPTX_DISP_SUSPEND;
-		mtk_dp_HPDInterruptSet(mtk_dp, HPD_DISCONNECT);
-		mdelay(5);
-	}
-	mutex_unlock(&mtk_dp->dp_lock);
+	mhal_DPTx_AnalogPowerOnOff(mtk_dp, false);
+	mhal_DPTx_HPDInterruptEnable(mtk_dp, false);
+
+	pm_runtime_put_sync(dev);
 
 	return 0;
 }
 
 static int mtk_dp_resume(struct device *dev)
 {
+	struct mtk_dp *mtk_dp = dev_get_drvdata(dev);
+
+	pm_runtime_get_sync(dev);
+
+	mdrv_DPTx_InitPort(mtk_dp);
+	mhal_DPTx_AnalogPowerOnOff(mtk_dp, true);
+	mhal_DPTx_HPDInterruptEnable(mtk_dp, true);
+
 	return 0;
 }
 #endif
