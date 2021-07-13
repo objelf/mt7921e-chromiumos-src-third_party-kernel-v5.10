@@ -75,8 +75,8 @@ mt76_get_of_eeprom(struct mt76_dev *dev, int len)
 	}
 
 #ifdef CONFIG_NL80211_TESTMODE
-	dev->test_mtd.name = devm_kstrdup(dev->dev, part, GFP_KERNEL);
-	dev->test_mtd.offset = offset;
+	dev->test.mtd_name = devm_kstrdup(dev->dev, part, GFP_KERNEL);
+	dev->test.mtd_offset = offset;
 #endif
 
 out_put_node:
@@ -88,10 +88,8 @@ out_put_node:
 }
 
 void
-mt76_eeprom_override(struct mt76_phy *phy)
+mt76_eeprom_override(struct mt76_dev *dev)
 {
-	struct mt76_dev *dev = phy->dev;
-
 #ifdef CONFIG_OF
 	struct device_node *np = dev->dev->of_node;
 	const u8 *mac = NULL;
@@ -99,14 +97,14 @@ mt76_eeprom_override(struct mt76_phy *phy)
 	if (np)
 		mac = of_get_mac_address(np);
 	if (!IS_ERR_OR_NULL(mac))
-		ether_addr_copy(phy->macaddr, mac);
+		ether_addr_copy(dev->macaddr, mac);
 #endif
 
-	if (!is_valid_ether_addr(phy->macaddr)) {
-		eth_random_addr(phy->macaddr);
+	if (!is_valid_ether_addr(dev->macaddr)) {
+		eth_random_addr(dev->macaddr);
 		dev_info(dev->dev,
 			 "Invalid MAC address, using random address %pM\n",
-			 phy->macaddr);
+			 dev->macaddr);
 	}
 }
 EXPORT_SYMBOL_GPL(mt76_eeprom_override);
