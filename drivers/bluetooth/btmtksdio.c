@@ -83,6 +83,8 @@ MODULE_DEVICE_TABLE(sdio, btmtksdio_table);
 
 #define MTK_REG_CRDR		0x1c
 
+#define MTK_REG_CRPLR		0x24
+
 #define MTK_SDIO_BLOCK_SIZE	256
 
 #define BTMTKSDIO_TX_WAIT_VND_EVT	1
@@ -405,8 +407,7 @@ static void btmtksdio_txrx_work(struct work_struct *work)
 						  txrx_work);
 	struct sk_buff *skb;
 	int err, count = 0;
-	u32 int_status;
-	u16 rx_size;
+	u32 int_status, rx_size;
 
 	pm_runtime_get_sync(bdev->dev);
 
@@ -449,7 +450,8 @@ static void btmtksdio_txrx_work(struct work_struct *work)
 		bt_dev_warn(bdev->hdev, "Tx fifo overflow");
 
 	if (int_status & RX_DONE_INT) {
-		rx_size = (int_status & RX_PKT_LEN) >> 16;
+		rx_size = sdio_readl(bdev->func, MTK_REG_CRPLR, NULL);
+		rx_size = (rx_size & RX_PKT_LEN) >> 16;
 		if (btmtksdio_rx_packet(bdev, rx_size) < 0)
 			bdev->hdev->stat.err_rx++;
 	}
