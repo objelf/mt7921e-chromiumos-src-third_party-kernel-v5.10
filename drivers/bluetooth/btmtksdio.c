@@ -103,6 +103,7 @@ struct btmtksdio_dev {
 	struct work_struct txrx_work;
 	unsigned long tx_state;
 	struct sk_buff_head txq;
+	bool hw_init;
 
 	struct sk_buff *evt_skb;
 
@@ -417,15 +418,6 @@ static void btmtksdio_txrx_work(struct work_struct *work)
 	/* Disable interrupt */
 	sdio_writel(bdev->func, C_INT_EN_CLR, MTK_REG_CHLPCR, 0);
 
-	while ((skb = skb_dequeue(&bdev->txq))) {
-		err = btmtksdio_tx_packet(bdev, skb);
-		if (err < 0) {
-			bdev->hdev->stat.err_tx++;
-			skb_queue_head(&bdev->txq, skb);
-			break;
-		}
-	}
-
 	txrx_timeout = jiffies + 5 * HZ;
 
 	do {
@@ -445,9 +437,16 @@ static void btmtksdio_txrx_work(struct work_struct *work)
 		if (int_status & FW_OWN_BACK_INT)
 			bt_dev_dbg(bdev->hdev, "Get fw own back");
 
-		if (int_status & TX_EMPTY)
-			schedule_work(&bdev->txrx_work);
-		else if (unlikely(int_status & TX_FIFO_OVERFLOW))
+		if (int_status & TX_EMPTY || bdev->hw_init) {
+			skb = skb_dequeue(&bdev->txq);
+			if (skb) {
+				err = btmtksdio_tx_packet(bdev, skb);
+				if (err < 0) {
+					bdev->hdev->stat.err_tx++;
+					skb_queue_head(&bdev->txq, skb);
+				}
+			}
+		} else if (unlikely(int_status & TX_FIFO_OVERFLOW))
 			bt_dev_warn(bdev->hdev, "Tx fifo overflow");
 
 		if (int_status & RX_DONE_INT) {
@@ -642,6 +641,7 @@ static int btmtksdio_setup(struct hci_dev *hdev)
 	u8 param = 0x1;
 
 	calltime = ktime_get();
+	bdev->hw_init = true;
 
 	/* Query whether the firmware is already download */
 	wmt_params.op = BTMTK_WMT_SEMAPHORE;
@@ -714,6 +714,7 @@ ignore_func_on:
 	}
 	kfree_skb(skb);
 
+	bdev->hw_init = false;
 	rettime = ktime_get();
 	delta = ktime_sub(rettime, calltime);
 	duration = (unsigned long long)ktime_to_ns(delta) >> 10;
