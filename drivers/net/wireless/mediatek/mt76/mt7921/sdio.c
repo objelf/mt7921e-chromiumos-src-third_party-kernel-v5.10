@@ -86,6 +86,7 @@ static int mt7921s_probe(struct sdio_func *func,
 		.mcu_init = mt7921s_mcu_init,
 		.drv_own = mt7921s_mcu_drv_pmctrl,
 		.fw_own = mt7921s_mcu_fw_pmctrl,
+		.whole_chip_reset = mt7921s_whole_chip_reset,
 	};
 
 	struct mt7921_dev *dev;
@@ -280,6 +281,24 @@ static struct sdio_driver mt7921s_driver = {
 	}
 #endif
 };
-module_sdio_driver(mt7921s_driver);
+
+static int __init mt7921_init(void)
+{
+	int ret;
+
+	ret = sdio_register_driver(&mt7921s_driver);
+	init_reset_work();
+
+	return ret;
+}
+
+static void __exit mt7921_exit(void)
+{
+	sdio_unregister_driver(&mt7921s_driver);
+}
+
+module_init(mt7921_init);
+module_exit(mt7921_exit);
+
 MODULE_AUTHOR("Sean Wang <sean.wang@mediatek.com>");
 MODULE_LICENSE("Dual BSD/GPL");

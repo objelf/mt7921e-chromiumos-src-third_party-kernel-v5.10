@@ -400,6 +400,10 @@ static int mt7921_chip_reset(void *data, u64 val)
 		/* Reset wifisys directly. */
 		mt7921_reset(&dev->mt76);
 		break;
+	case 2:
+		if (mt76_is_sdio(&dev->mt76))
+			mt7921_whole_chip_reset(dev);
+		break;
 	default:
 		/* Collect the core dump before reset wifisys. */
 		mt7921_mutex_acquire(dev);

@@ -146,6 +146,7 @@ struct mt7921_phy {
 #define mt7921_init_reset(dev)		((dev)->hif_ops->init_reset(dev))
 #define mt7921_dev_reset(dev)		((dev)->hif_ops->reset(dev))
 #define mt7921_mcu_init(dev)		((dev)->hif_ops->mcu_init(dev))
+#define mt7921_whole_chip_reset(dev)	((dev)->hif_ops->whole_chip_reset(dev))
 #define __mt7921_mcu_drv_pmctrl(dev)	((dev)->hif_ops->drv_own(dev))
 #define	__mt7921_mcu_fw_pmctrl(dev)	((dev)->hif_ops->fw_own(dev))
 struct mt7921_hif_ops {
@@ -154,6 +155,7 @@ struct mt7921_hif_ops {
 	int (*mcu_init)(struct mt7921_dev *dev);
 	int (*drv_own)(struct mt7921_dev *dev);
 	int (*fw_own)(struct mt7921_dev *dev);
+	int (*whole_chip_reset)(struct mt7921_dev *dev);
 };
 
 struct mt7921_dev {
@@ -276,6 +278,7 @@ int mt7921_mcu_get_rx_rate(struct mt7921_phy *phy, struct ieee80211_vif *vif,
 int mt7921_mcu_fw_log_2_host(struct mt7921_dev *dev, u8 ctrl);
 void mt7921_mcu_rx_event(struct mt7921_dev *dev, struct sk_buff *skb);
 void mt7921_mcu_exit(struct mt7921_dev *dev);
+void init_reset_work(void);
 
 static inline void mt7921_irq_enable(struct mt7921_dev *dev, u32 mask)
 {
@@ -415,6 +418,7 @@ int mt7921e_mac_reset(struct mt7921_dev *dev);
 int mt7921e_mcu_init(struct mt7921_dev *dev);
 int mt7921s_wfsys_reset(struct mt7921_dev *dev);
 int mt7921s_mac_reset(struct mt7921_dev *dev);
+int mt7921s_whole_chip_reset(struct mt7921_dev *dev);
 int mt7921s_init_reset(struct mt7921_dev *dev);
 int mt7921e_mcu_drv_pmctrl(struct mt7921_dev *dev);
 int mt7921e_mcu_fw_pmctrl(struct mt7921_dev *dev);

@@ -2,6 +2,7 @@
 /* Copyright (C) 2021 MediaTek Inc. */
 
 #include <linux/iopoll.h>
+#include <linux/mmc/host.h>
 #include <linux/mmc/sdio_func.h>
 #include "mt7921.h"
 #include "mac.h"
@@ -86,6 +87,36 @@ int mt7921s_init_reset(struct mt7921_dev *dev)
 	mt7921s_enable_irq(&dev->mt76);
 
 	return 0;
+}
+
+struct reset_struct {
+	struct mt7921_dev *dev;
+	struct work_struct reset_work;
+};
+
+static struct reset_struct mt7921s_rst;
+
+int mt7921s_whole_chip_reset(struct mt7921_dev *dev)
+{
+	mt7921s_rst.dev = dev;
+	schedule_work(&(mt7921s_rst.reset_work));
+	return 0;
+}
+
+static void mt76_reset_work(struct work_struct *work)
+{
+	struct reset_struct *rst = container_of(work, struct reset_struct, reset_work);
+	struct mt7921_dev *dev = rst->dev;
+	struct mmc_host *host = dev->mt76.sdio.func->card->host;
+
+	host->rescan_entered = 0;
+	mmc_remove_host(host);
+	mmc_add_host(host);
+}
+
+void init_reset_work(void)
+{
+	INIT_WORK(&mt7921s_rst.reset_work, mt76_reset_work);
 }
 
 int mt7921s_mac_reset(struct mt7921_dev *dev)
