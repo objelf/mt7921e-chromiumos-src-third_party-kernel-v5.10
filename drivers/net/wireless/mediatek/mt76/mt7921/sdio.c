@@ -206,6 +206,8 @@ static int mt7921s_suspend(struct device *__dev)
 	int err;
 
 	pm->suspended = true;
+	set_bit(MT76_STATE_SUSPEND, &mdev->phy.state);
+
 	cancel_delayed_work_sync(&pm->ps_work);
 	cancel_work_sync(&pm->wake_work);
 
@@ -226,6 +228,7 @@ static int mt7921s_suspend(struct device *__dev)
 	clear_bit(MT76_READING_STATS, &dev->mphy.state);
 	mt76_tx_status_check(mdev, true);
 
+	mt76_worker_schedule(&mdev->sdio.txrx_worker);
 	wait_event_timeout(dev->mt76.sdio.wait,
 			   mt76s_txqs_empty(&dev->mt76), 5 * HZ);
 
@@ -257,6 +260,7 @@ restore_worker:
 		mt76_connac_mcu_set_deep_sleep(mdev, false);
 
 restore_suspend:
+	clear_bit(MT76_STATE_SUSPEND, &mdev->phy.state);
 	pm->suspended = false;
 
 	return err;
@@ -271,6 +275,7 @@ static int mt7921s_resume(struct device *__dev)
 	int err;
 
 	pm->suspended = false;
+	clear_bit(MT76_STATE_SUSPEND, &mdev->phy.state);
 
 	err = mt7921_mcu_drv_pmctrl(dev);
 	if (err < 0)
