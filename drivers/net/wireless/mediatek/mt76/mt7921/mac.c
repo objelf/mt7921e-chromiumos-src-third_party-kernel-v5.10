@@ -1389,6 +1389,7 @@ void mt7921_pm_power_save_work(struct work_struct *work)
 
 	if (!mt7921_mcu_fw_pmctrl(dev)) {
 		cancel_delayed_work_sync(&mphy->mac_work);
+		mt76_tx_status_check(mphy->dev, true);
 		return;
 	}
 out:
