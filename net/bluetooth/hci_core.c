@@ -3642,7 +3642,7 @@ static int hci_suspend_wait_event(struct hci_dev *hdev)
 			clear_bit(i, hdev->suspend_tasks);
 		}
 
-		ret = -ETIMEDOUT;
+		ret = 0;
 	} else {
 		ret = 0;
 	}
