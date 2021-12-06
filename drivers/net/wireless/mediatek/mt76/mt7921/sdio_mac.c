@@ -88,6 +88,14 @@ int mt7921s_init_reset(struct mt7921_dev *dev)
 	return 0;
 }
 
+static int mt7921s_mac_reset_enable(struct mt7921_dev *dev)
+{
+       mt76_clear(dev, MT_CONN_STATUS, MT_WIFI_PATCH_DL_STATE);
+       mt7921s_mcu_fw_pmctrl(dev);
+       mt7921s_mcu_drv_pmctrl(dev);
+       return 0;
+}
+
 int mt7921s_mac_reset(struct mt7921_dev *dev)
 {
 	int err;
@@ -117,6 +125,7 @@ int mt7921s_mac_reset(struct mt7921_dev *dev)
 	clear_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state);
 	clear_bit(MT76_MCU_RESET, &dev->mphy.state);
 	mt7921s_enable_irq(&dev->mt76);
+	mt7921s_mac_reset_enable(dev);
 
 	err = mt7921_run_firmware(dev);
 	if (err)
