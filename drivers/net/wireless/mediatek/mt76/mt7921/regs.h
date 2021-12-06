@@ -438,4 +438,7 @@
 #define MT_CONN_ON_MISC			0x7c0600f0
 #define MT_TOP_MISC2_FW_N9_RDY		GENMASK(1, 0)
 
+#define MT_CONN_STATUS                 0x7C053C10
+#define MT_WIFI_PATCH_DL_STATE BIT(0)
+
 #endif

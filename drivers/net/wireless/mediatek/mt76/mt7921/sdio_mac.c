@@ -61,6 +61,7 @@ int mt7921s_wfsys_reset(struct mt7921_dev *dev)
 	sdio_release_host(sdio->func);
 
 	/* activate mt7921s again */
+	mt76_clear(dev, MT_CONN_STATUS, MT_WIFI_PATCH_DL_STATE);
 	mt7921s_mcu_fw_pmctrl(dev);
 	mt7921s_mcu_drv_pmctrl(dev);
 
