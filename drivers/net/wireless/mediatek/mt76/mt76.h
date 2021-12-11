@@ -467,7 +467,7 @@ struct mt76_mcu {
 #define MT_TX_SG_MAX_SIZE	8
 #define MT_RX_SG_MAX_SIZE	4
 #define MT_NUM_TX_ENTRIES	256
-#define MT_NUM_RX_ENTRIES	128
+#define MT_NUM_RX_ENTRIES	512
 #define MCU_RESP_URB_SIZE	1024
 struct mt76_usb {
 	struct mutex usb_ctrl_mtx;
