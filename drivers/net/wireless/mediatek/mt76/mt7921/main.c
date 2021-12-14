@@ -495,10 +495,9 @@ mt7921_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
 {
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
 	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	int to_aci[] = { 3, 2, 0, 1};
 
-	/* no need to update right away, we'll get BSS_CHANGED_QOS */
-	queue = mt7921_lmac_mapping(dev, queue);
-	mvif->queue_params[queue] = *params;
+	mvif->queue_params[to_aci[queue]] = *params;
 
 	return 0;
 }
