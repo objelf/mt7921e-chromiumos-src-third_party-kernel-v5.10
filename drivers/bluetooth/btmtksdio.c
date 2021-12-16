@@ -465,13 +465,14 @@ static void btmtksdio_txrx_work(struct work_struct *work)
 	pm_runtime_get_sync(bdev->dev);
 
 	sdio_claim_host(bdev->func);
-
 	/* Disable interrupt */
 	sdio_writel(bdev->func, C_INT_EN_CLR, MTK_REG_CHLPCR, 0);
+	sdio_release_host(bdev->func);
 
 	txrx_timeout = jiffies + 5 * HZ;
 
 	do {
+		sdio_claim_host(bdev->func);
 		int_status = sdio_readl(bdev->func, MTK_REG_CHISR, NULL);
 
 		/* Ack an interrupt as soon as possible before any operation on
@@ -484,13 +485,17 @@ static void btmtksdio_txrx_work(struct work_struct *work)
 		 * FIFO.
 		 */
 		sdio_writel(bdev->func, int_status, MTK_REG_CHISR, NULL);
+		sdio_release_host(bdev->func);
 
 		if (int_status & FIRMWARE_INT) {
-			if (bdev->data->chipid == 0x7921)
+			if (bdev->data->chipid == 0x7921) {
+				sdio_claim_host(bdev->func);
 				sdio_writel(bdev->func, PH2DSM0R_DRIVER_OWN,
 					    MTK_REG_PH2DSM0R, 0);
-			else
+				sdio_release_host(bdev->func);
+			} else {
 				bt_dev_dbg(bdev->hdev, "Get fw int");
+			}
 		}
 
 		if (int_status & FW_OWN_BACK_INT)
@@ -521,9 +526,9 @@ static void btmtksdio_txrx_work(struct work_struct *work)
 		}
 	} while (int_status || time_is_before_jiffies(txrx_timeout));
 
+	sdio_claim_host(bdev->func);
 	/* Enable interrupt */
 	sdio_writel(bdev->func, C_INT_EN_SET, MTK_REG_CHLPCR, 0);
-
 	sdio_release_host(bdev->func);
 
 	pm_runtime_mark_last_busy(bdev->dev);
