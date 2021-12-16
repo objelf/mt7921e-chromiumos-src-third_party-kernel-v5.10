@@ -260,8 +260,11 @@ static int btmtksdio_tx_packet(struct btmtksdio_dev *bdev,
 	sdio_hdr->bt_type = hci_skb_pkt_type(skb);
 
 	clear_bit(BTMTKSDIO_HW_TX_READY, &bdev->tx_state);
+	sdio_claim_host(bdev->func);
 	err = sdio_writesb(bdev->func, MTK_REG_CTDR, skb->data,
 			   round_up(skb->len, MTK_SDIO_BLOCK_SIZE));
+	sdio_release_host(bdev->func);
+
 	if (err < 0)
 		goto err_skb_pull;
 
@@ -375,7 +378,10 @@ static int btmtksdio_rx_packet(struct btmtksdio_dev *bdev, u16 rx_size)
 
 	skb_put(skb, rx_size);
 
+	sdio_claim_host(bdev->func);
 	err = sdio_readsb(bdev->func, skb->data, MTK_REG_CRDR, rx_size);
+	sdio_release_host(bdev->func);
+
 	if (err < 0)
 		goto err_kfree_skb;
 
@@ -465,13 +471,14 @@ static void btmtksdio_txrx_work(struct work_struct *work)
 	pm_runtime_get_sync(bdev->dev);
 
 	sdio_claim_host(bdev->func);
-
 	/* Disable interrupt */
 	sdio_writel(bdev->func, C_INT_EN_CLR, MTK_REG_CHLPCR, 0);
+	sdio_release_host(bdev->func);
 
 	txrx_timeout = jiffies + 5 * HZ;
 
 	do {
+		sdio_claim_host(bdev->func);
 		int_status = sdio_readl(bdev->func, MTK_REG_CHISR, NULL);
 
 		/* Ack an interrupt as soon as possible before any operation on
@@ -484,13 +491,17 @@ static void btmtksdio_txrx_work(struct work_struct *work)
 		 * FIFO.
 		 */
 		sdio_writel(bdev->func, int_status, MTK_REG_CHISR, NULL);
+		sdio_release_host(bdev->func);
 
 		if (int_status & FIRMWARE_INT) {
-			if (bdev->data->chipid == 0x7921)
+			if (bdev->data->chipid == 0x7921) {
+				sdio_claim_host(bdev->func);
 				sdio_writel(bdev->func, PH2DSM0R_DRIVER_OWN,
 					    MTK_REG_PH2DSM0R, 0);
-			else
+				sdio_release_host(bdev->func);
+			} else {
 				bt_dev_dbg(bdev->hdev, "Get fw int");
+			}
 		}
 
 		if (int_status & FW_OWN_BACK_INT)
@@ -514,16 +525,18 @@ static void btmtksdio_txrx_work(struct work_struct *work)
 		}
 
 		if (int_status & RX_DONE_INT) {
+			sdio_claim_host(bdev->func);
 			rx_size = sdio_readl(bdev->func, MTK_REG_CRPLR, NULL);
+			sdio_release_host(bdev->func);
 			rx_size = (rx_size & RX_PKT_LEN) >> 16;
 			if (btmtksdio_rx_packet(bdev, rx_size) < 0)
 				bdev->hdev->stat.err_rx++;
 		}
 	} while (int_status || time_is_before_jiffies(txrx_timeout));
 
+	sdio_claim_host(bdev->func);
 	/* Enable interrupt */
 	sdio_writel(bdev->func, C_INT_EN_SET, MTK_REG_CHLPCR, 0);
-
 	sdio_release_host(bdev->func);
 
 	pm_runtime_mark_last_busy(bdev->dev);
