@@ -532,7 +532,8 @@ static void btmtksdio_txrx_work(struct work_struct *work)
 			if (btmtksdio_rx_packet(bdev, rx_size) < 0)
 				bdev->hdev->stat.err_rx++;
 		}
-	} while (int_status || time_is_before_jiffies(txrx_timeout));
+	} while (int_status || skb_peek(&bdev->txq) ||
+		 time_is_before_jiffies(txrx_timeout));
 
 	sdio_claim_host(bdev->func);
 	/* Enable interrupt */
