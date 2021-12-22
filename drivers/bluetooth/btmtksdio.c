@@ -981,6 +981,18 @@ static int btmtksdio_setup(struct hci_dev *hdev)
 		if (err < 0)
 			return err;
 
+		err = btmtksdio_fw_pmctrl(bdev);
+		if (err < 0) {
+			bt_dev_err(hdev, "Failed to fw ctrl (%d)", err);
+			return err;
+		}
+
+		err = btmtksdio_drv_pmctrl(bdev);
+		if (err < 0) {
+			bt_dev_err(hdev, "Failed to drv ctrl (%d)", err);
+			return err;
+		}
+
 		/* Enable SCO over I2S/PCM */
 		err = btsdio_mtk_sco_setting(hdev);
 		if (err < 0) {
