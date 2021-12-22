@@ -92,6 +92,8 @@ MODULE_DEVICE_TABLE(sdio, btmtksdio_table);
 
 #define MTK_REG_PH2DSM0R	0x00C4
 #define PH2DSM0R_DRIVER_OWN	BIT(0)
+#define MTK_REG_PD2HRM0R	0x00DC
+#define PD2HRM0R_DRV_OWN	BIT(0)
 
 #define MTK_REG_CTDR		0x18
 
@@ -104,6 +106,7 @@ MODULE_DEVICE_TABLE(sdio, btmtksdio_table);
 #define BTMTKSDIO_TX_WAIT_VND_EVT	1
 #define BTMTKSDIO_HW_TX_READY		2
 #define BTMTKSDIO_FUNC_ENABLED		3
+#define BTMTKSDIO_PATCH_ENABLED		4
 
 struct mtkbtsdio_hdr {
 	__le16	len;
@@ -285,6 +288,11 @@ static u32 btmtksdio_drv_own_query(struct btmtksdio_dev *bdev)
 	return sdio_readl(bdev->func, MTK_REG_CHLPCR, NULL);
 }
 
+static u32 btmtksdio_drv_own_query_79xx(struct btmtksdio_dev *bdev)
+{
+	return sdio_readl(bdev->func, MTK_REG_PD2HRM0R, NULL);
+}
+
 static int btmtksdio_fw_pmctrl(struct btmtksdio_dev *bdev)
 {
 	u32 status;
@@ -298,6 +306,11 @@ static int btmtksdio_fw_pmctrl(struct btmtksdio_dev *bdev)
 
 	err = readx_poll_timeout(btmtksdio_drv_own_query, bdev, status,
 				 !(status & C_COM_DRV_OWN), 2000, 1000000);
+
+	if (test_bit(BTMTKSDIO_PATCH_ENABLED, &bdev->tx_state))
+		err = readx_poll_timeout(btmtksdio_drv_own_query_79xx, bdev,
+					 status, !(status & PD2HRM0R_DRV_OWN),
+					 2000, 1000000);
 
 out:
 	sdio_release_host(bdev->func);
@@ -318,6 +331,11 @@ static int btmtksdio_drv_pmctrl(struct btmtksdio_dev *bdev)
 
 	err = readx_poll_timeout(btmtksdio_drv_own_query, bdev, status,
 				 status & C_COM_DRV_OWN, 2000, 1000000);
+
+	if (test_bit(BTMTKSDIO_PATCH_ENABLED, &bdev->tx_state))
+		err = readx_poll_timeout(btmtksdio_drv_own_query_79xx, bdev,
+					 status, status & PD2HRM0R_DRV_OWN,
+					 2000, 1000000);
 
 out:
 	sdio_release_host(bdev->func);
@@ -700,6 +718,7 @@ static int btmtksdio_close(struct hci_dev *hdev)
 		bt_dev_err(bdev->hdev, "Cannot return ownership to device");
 
 	clear_bit(BTMTKSDIO_FUNC_ENABLED, &bdev->tx_state);
+	clear_bit(BTMTKSDIO_PATCH_ENABLED, &bdev->tx_state);
 	sdio_disable_func(bdev->func);
 
 	sdio_release_host(bdev->func);
@@ -825,6 +844,7 @@ ignore_func_on:
 static int mt79xx_setup(struct hci_dev *hdev, const char *fwname)
 {
 	struct btmtk_hci_wmt_params wmt_params;
+	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
 	u8 param = 0x1;
 	int err;
 
@@ -848,6 +868,7 @@ static int mt79xx_setup(struct hci_dev *hdev, const char *fwname)
 	}
 
 	hci_set_msft_opcode(hdev, 0xFD30);
+	set_bit(BTMTKSDIO_PATCH_ENABLED, &bdev->tx_state);
 
 	return err;
 }
