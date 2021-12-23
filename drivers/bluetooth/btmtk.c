@@ -58,6 +58,7 @@ int btmtk_setup_firmware_79xx(struct hci_dev *hdev, const char *fwname,
 {
 	struct btmtk_hci_wmt_params wmt_params;
 	struct btmtk_global_desc *globaldesc = NULL;
+	struct btmtk_patch_header *patchhdr = NULL;
 	struct btmtk_section_map *sectionmap;
 	const struct firmware *fw;
 	const u8 *fw_ptr;
@@ -76,6 +77,9 @@ int btmtk_setup_firmware_79xx(struct hci_dev *hdev, const char *fwname,
 	fw_ptr = fw->data;
 	fw_bin_ptr = fw_ptr;
 	globaldesc = (struct btmtk_global_desc *)(fw_ptr + MTK_FW_ROM_PATCH_HEADER_SIZE);
+	patchhdr = (struct btmtk_patch_header *)(fw_ptr);
+	bt_dev_info(hdev, "Built Time = %s, Driver Ver = %s",
+		    patchhdr->datetime, "v1.0.0.20211223");
 	section_num = le32_to_cpu(globaldesc->section_num);
 
 	for (i = 0; i < section_num; i++) {
