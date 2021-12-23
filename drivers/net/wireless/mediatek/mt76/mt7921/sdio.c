@@ -16,6 +16,8 @@
 #include "mac.h"
 #include "mcu.h"
 
+#define MT7921_DRIVER_VERSION "v1.0.1_20211230"
+
 static const struct sdio_device_id mt7921s_table[] = {
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_MEDIATEK, 0x7901) },
 	{ }	/* Terminating entry */
@@ -144,6 +146,7 @@ static int mt7921s_probe(struct sdio_func *func,
 	mdev->rev = (mt76_rr(dev, MT_HW_CHIPID) << 16) |
 		    (mt76_rr(dev, MT_HW_REV) & 0xff);
 	dev_dbg(mdev->dev, "ASIC revision: %04x\n", mdev->rev);
+	dev_info(mdev->dev, "driver version: %s\n", MT7921_DRIVER_VERSION);
 
 	mdev->sdio.parse_irq = mt7921s_parse_intr;
 	mdev->sdio.intr_data = devm_kmalloc(mdev->dev,
