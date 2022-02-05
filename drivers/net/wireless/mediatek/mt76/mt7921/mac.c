@@ -789,6 +789,8 @@ mt7921_mac_write_txwi_80211(struct mt7921_dev *dev, __le32 *txwi,
 		txwi[3] |= cpu_to_le32(val);
 	}
 
+	txwi[3] |= MT_TXD3_BA_DISABLE;
+
 	val = FIELD_PREP(MT_TXD7_TYPE, fc_type) |
 	      FIELD_PREP(MT_TXD7_SUB_TYPE, fc_stype);
 	txwi[7] |= cpu_to_le32(val);
