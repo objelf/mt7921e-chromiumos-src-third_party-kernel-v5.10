@@ -522,7 +522,7 @@ mt76_txq_schedule_list(struct mt76_phy *phy, enum mt76_txq_id qid)
 
 		mtxq = (struct mt76_txq *)txq->drv_priv;
 		wcid = mtxq->wcid;
-		if (wcid && test_bit(MT_WCID_FLAG_PS, &wcid->flags))
+		if (!wcid || (wcid && test_bit(MT_WCID_FLAG_PS, &wcid->flags)))
 			continue;
 
 		spin_lock_bh(&q->lock);

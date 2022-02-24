@@ -266,7 +266,7 @@ struct mt76_wcid {
 };
 
 struct mt76_txq {
-	struct mt76_wcid *wcid;
+	struct mt76_wcid __rcu *wcid;
 
 	u16 agg_ssn;
 	bool send_bar;
